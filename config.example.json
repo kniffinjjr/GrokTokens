@@ -1,0 +1,42 @@
+{
+  "plan": {
+    "name": "API pay-as-you-go",
+    "billing": "api",
+    "monthlyUsd": 0,
+    "notes": [
+      "billing: api | subscription",
+      "For X Premium+ or SuperGrok, set billing to subscription and monthlyUsd to your plan fee.",
+      "USD on the dashboard uses published API rates as an estimate (or API-equivalent value on a sub)."
+    ]
+  },
+  "limits": {
+    "period": "month",
+    "budgetUsd": 100,
+    "softWarnPercent": 80,
+    "_comment": "period: day | month | none. budgetUsd: soft cap for the bar (set to plan fee for subscription value tracking)."
+  },
+  "rateLimits": {
+    "enabled": false,
+    "windowHours": 2,
+    "maxPrompts": 100,
+    "_comment": "Optional prompt-cap proxy using active session turn counts. Enable and tune for subscription plans."
+  },
+  "pricing": {
+    "currency": "USD",
+    "source": "https://docs.x.ai/developers/pricing",
+    "default": {
+      "inputPerM": 2.0,
+      "cachedInputPerM": 0.5,
+      "outputPerM": 6.0
+    },
+    "models": {
+      "grok-4.5": { "inputPerM": 2.0, "cachedInputPerM": 0.5, "outputPerM": 6.0 },
+      "grok-4.3": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
+      "grok-4.20-0309-reasoning": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
+      "grok-4.20-0309-non-reasoning": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
+      "grok-4.20-multi-agent-0309": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
+      "grok-build-0.1": { "inputPerM": 1.0, "cachedInputPerM": 0.2, "outputPerM": 2.0 },
+      "grok-4.1-fast": { "inputPerM": 0.2, "cachedInputPerM": 0.05, "outputPerM": 0.5 }
+    }
+  }
+}
