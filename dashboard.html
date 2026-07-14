@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GrokTokens — Agent Token Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; background: #07090f; }
+    .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .glass {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .metric-value { font-variant-numeric: tabular-nums; }
+    .section-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .status-dot { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+    .bar-track { background: rgba(255,255,255,0.06); height: 6px; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .ctx-ok { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .ctx-warn { background: linear-gradient(90deg, #eab308, #facc15); }
+    .ctx-hot { background: linear-gradient(90deg, #f97316, #ef4444); }
+    .agent-card { transition: border-color 0.2s, transform 0.15s; }
+    .agent-card:hover { border-color: rgba(96,165,250,0.35); }
+    .agent-card.dead { opacity: 0.72; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    table.tok th {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #64748b; font-weight: 600; text-align: left; padding: 0.5rem 0.75rem;
+    }
+    table.tok td {
+      padding: 0.65rem 0.75rem; border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.875rem; vertical-align: middle;
+    }
+    table.tok tr:hover td { background: rgba(255,255,255,0.025); }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+  <div class="max-w-[1400px] mx-auto px-5 pb-12">
+    <!-- Header -->
+    <header class="flex flex-wrap items-center justify-between gap-4 pt-6 pb-4 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-display text-2xl font-semibold tracking-tight">GrokTokens</h1>
+          <p class="text-xs text-slate-500">Live token consumption · local agents only</p>
+        </div>
+        <div id="live-badge" class="ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+          <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div>
+          LIVE
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <div class="glass rounded-xl px-3 py-1.5 text-xs text-slate-400">
+          Refresh <span id="poll-label" class="text-slate-200 font-medium">2s</span>
+        </div>
+        <div class="glass rounded-xl px-3 py-1.5 text-xs text-slate-400">
+          Updated <span id="updated-at" class="text-slate-200 font-mono">—</span>
+        </div>
+        <button onclick="refreshNow()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium transition">
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <!-- Plan / budget / rate limit -->
+    <section class="grid md:grid-cols-3 gap-3 mt-6">
+      <div class="glass rounded-2xl p-4 md:col-span-2">
+        <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div>
+            <div class="section-title mb-1">
+              <span id="plan-name">Plan</span>
+              · API-equivalent value
+              (<span id="budget-period" class="text-slate-500">month</span>)
+            </div>
+            <div class="metric-value font-display text-3xl font-semibold" id="m-spent">$0.00</div>
+            <div class="text-xs text-slate-500 mt-1">
+              retail API value of tokens used · vs plan fee
+              <span id="m-budget-cap" class="text-slate-300">$40</span>/mo
+            </div>
+          </div>
+          <div class="text-right">
+            <div id="budget-status" class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">OK</div>
+            <div class="text-xs text-slate-500 mt-2">headroom <span id="m-remaining" class="text-slate-200 font-mono">—</span></div>
+          </div>
+        </div>
+        <div class="bar-track h-2"><div id="budget-bar" class="bar-fill ctx-ok" style="width:0%"></div></div>
+        <div class="flex justify-between text-[11px] text-slate-500 mt-1.5">
+          <span id="budget-pct">0% of plan fee (value)</span>
+          <span id="budget-rates" class="font-mono">grok-4.5 API rates</span>
+        </div>
+        <p class="text-[11px] text-slate-600 mt-2" id="pricing-note">Subscription: flat fee, not per-token. $ = API equivalent.</p>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Rate limit (approx)</div>
+        <div class="metric-value font-display text-3xl font-semibold text-sky-400" id="m-prompts">0<span class="text-lg text-slate-500"> / —</span></div>
+        <div class="text-xs text-slate-500 mt-1">user turns on active agents · <span id="rl-window">2h</span> window proxy</div>
+        <div class="bar-track h-1.5 mt-3"><div id="rl-bar" class="bar-fill ctx-ok" style="width:0%"></div></div>
+        <div class="flex justify-between text-[11px] text-slate-500 mt-1">
+          <span id="rl-status">—</span>
+          <span id="rl-remaining">— left</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-white/5">
+          <div class="section-title mb-1">Active sessions · API $</div>
+          <div class="metric-value font-mono text-lg text-emerald-400" id="m-active-cost">$0.00</div>
+          <div class="text-[11px] text-slate-500 mt-1"><span id="m-period-tokens">0</span> tok · <span id="m-period-sessions">0</span> sessions in period</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Totals -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Active agents</div>
+        <div class="metric-value font-display text-3xl font-semibold text-emerald-400" id="m-agents">0</div>
+        <div class="text-xs text-slate-500 mt-1"><span id="m-agents-listed">0</span> listed · <span id="m-procs">0</span> grok procs</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Total tokens</div>
+        <div class="metric-value font-display text-3xl font-semibold text-white" id="m-total">0</div>
+        <div class="text-xs text-slate-500 mt-1">active sessions</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Input</div>
+        <div class="metric-value font-display text-3xl font-semibold text-sky-400" id="m-input">0</div>
+        <div class="text-xs text-slate-500 mt-1">prompt tokens</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Output</div>
+        <div class="metric-value font-display text-3xl font-semibold text-violet-400" id="m-output">0</div>
+        <div class="text-xs text-slate-500 mt-1">completion tokens</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Cache read</div>
+        <div class="metric-value font-display text-3xl font-semibold text-amber-400" id="m-cached">0</div>
+        <div class="text-xs text-slate-500 mt-1">cache hits</div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-1">Reasoning</div>
+        <div class="metric-value font-display text-3xl font-semibold text-rose-400" id="m-reason">0</div>
+        <div class="text-xs text-slate-500 mt-1">thinking tokens</div>
+      </div>
+    </section>
+
+    <!-- Chart + model breakdown -->
+    <section class="grid lg:grid-cols-3 gap-4 mt-4">
+      <div class="glass rounded-2xl p-4 lg:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <div class="section-title">Cumulative tokens (active agents)</div>
+          <div class="text-xs text-slate-500" id="chart-hint">updates as sessions complete turns</div>
+        </div>
+        <div class="h-52">
+          <canvas id="tokenChart"></canvas>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-4">
+        <div class="section-title mb-3">By model (active)</div>
+        <div id="model-breakdown" class="space-y-3 text-sm">
+          <div class="text-slate-500 text-xs">No data yet</div>
+        </div>
+        <div class="mt-4 pt-3 border-t border-white/5">
+          <div class="section-title mb-2">Context fill (active)</div>
+          <div class="metric-value font-mono text-lg" id="m-context">—</div>
+          <div class="text-xs text-slate-500 mt-1">sum of current context windows</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active agents -->
+    <section class="mt-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-display text-lg font-semibold">Running agents</h2>
+        <span class="text-xs text-slate-500" id="agent-count-label">0 active</span>
+      </div>
+      <div id="agents" class="grid md:grid-cols-2 gap-3">
+        <div class="glass rounded-2xl p-6 text-slate-500 text-sm">Waiting for data…</div>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="mt-8">
+      <h2 class="font-display text-lg font-semibold mb-3">Token table</h2>
+      <div class="glass rounded-2xl overflow-x-auto">
+        <table class="tok w-full">
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Model</th>
+              <th>Status</th>
+              <th class="text-right!">Input</th>
+              <th class="text-right!">Output</th>
+              <th class="text-right!">Cached</th>
+              <th class="text-right!">Reason</th>
+              <th class="text-right!">Total</th>
+              <th class="text-right!">Est. $</th>
+              <th class="text-right!">Context</th>
+              <th class="text-right!">Turns</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr><td colspan="10" class="text-slate-500 text-sm">No agents</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Recent -->
+    <section class="mt-8">
+      <h2 class="font-display text-lg font-semibold mb-3">Recent sessions <span class="text-slate-500 text-sm font-normal">(24h, not currently listed)</span></h2>
+      <div id="recent" class="glass rounded-2xl overflow-x-auto">
+        <table class="tok w-full">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Model</th>
+              <th class="text-right!">Total tokens</th>
+              <th class="text-right!">In / Out</th>
+              <th class="text-right!">Turns</th>
+              <th>Last active</th>
+            </tr>
+          </thead>
+          <tbody id="recent-body">
+            <tr><td colspan="6" class="text-slate-500 text-sm">None</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-xs text-slate-600 space-y-1 border-t border-white/5 pt-4">
+      <p>Data sources: <code class="text-slate-500">~/.grok/active_sessions.json</code>, session <code class="text-slate-500">signals.json</code>, <code class="text-slate-500">summary.json</code>, and <code class="text-slate-500">turn_completed</code> usage in <code class="text-slate-500">updates.jsonl</code>.</p>
+      <p id="notes"></p>
+      <p class="text-slate-700">100% local · no network egress from this dashboard server</p>
+    </footer>
+  </div>
+
+  <script>
+    const POLL_MS = 2000;
+    // Always hit the local server (works even if this HTML was opened as a file:// page)
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
+      ? ''
+      : 'http://127.0.0.1:8765';
+    let chart = null;
+    let lastError = null;
+
+    function fmt(n) {
+      n = Number(n) || 0;
+      if (n >= 1_000_000) return (n / 1e6).toFixed(2) + 'M';
+      if (n >= 10_000) return (n / 1e3).toFixed(1) + 'k';
+      if (n >= 1_000) return (n / 1e3).toFixed(2) + 'k';
+      return String(Math.round(n));
+    }
+    function fmtFull(n) {
+      return (Number(n) || 0).toLocaleString();
+    }
+    function fmtUsd(n, digits) {
+      const d = digits == null ? 2 : digits;
+      const v = Number(n) || 0;
+      if (Math.abs(v) >= 100) return '$' + v.toFixed(0);
+      if (Math.abs(v) >= 10) return '$' + v.toFixed(2);
+      if (Math.abs(v) >= 1) return '$' + v.toFixed(2);
+      if (Math.abs(v) >= 0.01) return '$' + v.toFixed(3);
+      return '$' + v.toFixed(4);
+    }
+    function fmtDuration(sec) {
+      sec = Number(sec) || 0;
+      if (sec < 60) return sec + 's';
+      if (sec < 3600) return Math.floor(sec / 60) + 'm ' + (sec % 60) + 's';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      return h + 'h ' + m + 'm';
+    }
+    function fmtBytes(b) {
+      b = Number(b) || 0;
+      if (b >= 1e9) return (b / 1e9).toFixed(1) + ' GB';
+      if (b >= 1e6) return (b / 1e6).toFixed(0) + ' MB';
+      if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
+      return b + ' B';
+    }
+    function relTime(iso) {
+      if (!iso) return '—';
+      const t = Date.parse(iso);
+      if (Number.isNaN(t)) return iso;
+      const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+      if (s < 5) return 'just now';
+      if (s < 60) return s + 's ago';
+      if (s < 3600) return Math.floor(s / 60) + 'm ago';
+      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+      return Math.floor(s / 86400) + 'd ago';
+    }
+    function ctxClass(pct) {
+      if (pct >= 80) return 'ctx-hot';
+      if (pct >= 55) return 'ctx-warn';
+      return 'ctx-ok';
+    }
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('tokenChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Total',
+              data: [],
+              borderColor: '#a78bfa',
+              backgroundColor: 'rgba(167,139,250,0.08)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 2
+            },
+            {
+              label: 'Input',
+              data: [],
+              borderColor: '#38bdf8',
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 1.5
+            },
+            {
+              label: 'Output',
+              data: [],
+              borderColor: '#c084fc',
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 1.5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 250 },
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (c) => ` ${c.dataset.label}: ${fmtFull(c.raw)}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 10 } },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            y: {
+              ticks: {
+                color: '#64748b',
+                font: { size: 10 },
+                callback: (v) => fmt(v)
+              },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderAgentCard(a) {
+      const u = a.usage || {};
+      const alive = a.alive;
+      const pct = a.contextWindowUsage || 0;
+      const tools = (a.toolsUsed || []).slice(0, 8).map(t =>
+        `<span class="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-slate-400 font-mono">${esc(t)}</span>`
+      ).join(' ');
+      const last = u.lastTurn;
+      const lastLine = last
+        ? `Last turn: ${fmt(last.totalTokens)} tok · ${last.apiDurationMs || 0}ms API · ${last.modelCalls || 0} calls`
+        : 'No completed turns with usage yet';
+
+      return `
+        <article class="agent-card glass rounded-2xl p-4 ${alive ? '' : 'dead'}">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <span class="w-2 h-2 rounded-full ${alive ? 'bg-emerald-400 status-dot' : 'bg-slate-600'}"></span>
+                <h3 class="font-medium truncate" title="${esc(a.title)}">${esc(a.title)}</h3>
+              </div>
+              <div class="text-xs text-slate-500 font-mono truncate">
+                ${esc(a.shortId)} · pid ${a.pid || '—'} · ${esc(a.agentName)} · ${esc(a.model)}
+              </div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="metric-value font-display text-2xl font-semibold">${fmt(u.totalTokens)}</div>
+              <div class="text-[10px] text-slate-500 uppercase tracking-wide">tokens · <span class="text-emerald-400/90">${fmtUsd(u.costUsd)}</span> est.</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-4 gap-2 mb-3 text-center">
+            <div class="rounded-xl bg-white/[0.03] p-2">
+              <div class="text-[10px] text-slate-500">IN</div>
+              <div class="metric-value font-mono text-sm text-sky-400">${fmt(u.inputTokens)}</div>
+            </div>
+            <div class="rounded-xl bg-white/[0.03] p-2">
+              <div class="text-[10px] text-slate-500">OUT</div>
+              <div class="metric-value font-mono text-sm text-violet-400">${fmt(u.outputTokens)}</div>
+            </div>
+            <div class="rounded-xl bg-white/[0.03] p-2">
+              <div class="text-[10px] text-slate-500">CACHE</div>
+              <div class="metric-value font-mono text-sm text-amber-400">${fmt(u.cachedReadTokens)}</div>
+            </div>
+            <div class="rounded-xl bg-white/[0.03] p-2">
+              <div class="text-[10px] text-slate-500">REASON</div>
+              <div class="metric-value font-mono text-sm text-rose-400">${fmt(u.reasoningTokens)}</div>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-500">Context window</span>
+              <span class="font-mono text-slate-300">${fmt(a.contextTokensUsed)} / ${fmt(a.contextWindowTokens)} · ${pct}%</span>
+            </div>
+            <div class="bar-track"><div class="bar-fill ${ctxClass(pct)}" style="width:${Math.min(100, pct)}%"></div></div>
+          </div>
+
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-3">
+            <span>Turns <b class="text-slate-300 font-medium">${a.turnCount || 0}</b></span>
+            <span>Tools <b class="text-slate-300 font-medium">${a.toolCallCount || 0}</b></span>
+            <span>Calls <b class="text-slate-300 font-medium">${u.modelCalls || 0}</b></span>
+            <span>Duration <b class="text-slate-300 font-medium">${fmtDuration(a.sessionDurationSeconds)}</b></span>
+            <span>TTFT <b class="text-slate-300 font-medium">${a.avgTimeToFirstTokenMs || 0}ms</b></span>
+            ${a.processRssBytes ? `<span>RSS <b class="text-slate-300 font-medium">${fmtBytes(a.processRssBytes)}</b></span>` : ''}
+          </div>
+          ${tools ? `<div class="flex flex-wrap gap-1 mt-2">${tools}</div>` : ''}
+          <div class="text-[11px] text-slate-600 mt-2 truncate" title="${esc(a.cwd)}">${esc(a.cwd || '')}</div>
+          <div class="text-[11px] text-slate-600 mt-0.5">${esc(lastLine)} · active ${relTime(a.lastActiveAt || a.openedAt)}</div>
+        </article>`;
+    }
+
+    function render(state) {
+      const t = state.totals || {};
+      const budget = state.budget || {};
+      const period = state.period || {};
+      const pricing = state.pricing || {};
+
+      document.getElementById('m-agents').textContent = t.agentsAlive ?? 0;
+      document.getElementById('m-agents-listed').textContent = t.agentsListed ?? 0;
+      document.getElementById('m-procs').textContent = (state.processes || []).length;
+      document.getElementById('m-total').textContent = fmt(t.totalTokens);
+      document.getElementById('m-total').title = fmtFull(t.totalTokens);
+      document.getElementById('m-input').textContent = fmt(t.inputTokens);
+      document.getElementById('m-input').title = fmtFull(t.inputTokens);
+      document.getElementById('m-output').textContent = fmt(t.outputTokens);
+      document.getElementById('m-output').title = fmtFull(t.outputTokens);
+      document.getElementById('m-cached').textContent = fmt(t.cachedReadTokens);
+      document.getElementById('m-cached').title = fmtFull(t.cachedReadTokens);
+      document.getElementById('m-reason').textContent = fmt(t.reasoningTokens);
+      document.getElementById('m-reason').title = fmtFull(t.reasoningTokens);
+      document.getElementById('m-context').textContent = fmt(t.contextTokensUsed);
+      document.getElementById('updated-at').textContent = relTime(state.generatedAt);
+
+      // Plan / budget / rate limit
+      const plan = state.plan || {};
+      const rl = state.rateLimit || {};
+      const spent = Number(budget.spentUsd != null ? budget.spentUsd : period.costUsd) || 0;
+      const cap = Number(budget.budgetUsd) || Number(plan.monthlyUsd) || 0;
+      const pct = Number(budget.usedPercent) || 0;
+      document.getElementById('plan-name').textContent = plan.name || 'Plan';
+      document.getElementById('m-spent').textContent = fmtUsd(spent);
+      document.getElementById('m-spent').title = '$' + spent.toFixed(6) + ' API-equivalent';
+      document.getElementById('m-budget-cap').textContent = cap > 0 ? fmtUsd(cap) : 'not set';
+      document.getElementById('budget-period').textContent = budget.period || period.name || '—';
+      document.getElementById('m-active-cost').textContent = fmtUsd(t.costUsd || 0);
+      document.getElementById('m-active-cost').title = '$' + Number(t.costUsd || 0).toFixed(6);
+      document.getElementById('m-period-tokens').textContent = fmt(period.totalTokens || 0);
+      document.getElementById('m-period-sessions').textContent = period.sessionCount || 0;
+      document.getElementById('m-remaining').textContent =
+        budget.remainingUsd != null ? fmtUsd(budget.remainingUsd) : '—';
+      const isSub = (plan.billing || '') === 'subscription' || pricing.isApiEquivalent;
+      document.getElementById('budget-pct').textContent =
+        budget.status === 'unlimited' ? 'no comparison budget set' :
+        (isSub
+          ? (pct.toFixed(1) + '% of monthly plan fee as API value')
+          : (pct.toFixed(1) + '% of budget'));
+
+      const bar = document.getElementById('budget-bar');
+      const st = document.getElementById('budget-status');
+      const status = budget.status || 'ok';
+      const width = budget.status === 'unlimited' ? Math.min(100, pct || 0) : Math.min(100, pct);
+      bar.style.width = (cap > 0 ? width : 0) + '%';
+      bar.className = 'bar-fill ' + (status === 'over' ? 'ctx-hot' : status === 'warn' ? 'ctx-warn' : 'ctx-ok');
+      st.textContent = status === 'over' ? (isSub ? 'VALUE > PLAN FEE' : 'OVER BUDGET')
+        : status === 'warn' ? 'NEAR CAP' : status === 'unlimited' ? 'NO $ CAP' : 'OK';
+      st.className = 'inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ' + (
+        status === 'over' ? 'border-rose-500/30 bg-rose-500/10 text-rose-400' :
+        status === 'warn' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+        status === 'unlimited' ? 'border-slate-500/30 bg-slate-500/10 text-slate-400' :
+        'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+      );
+
+      // Rate limit proxy
+      const maxP = Number(rl.maxPrompts) || 0;
+      const usedP = Number(rl.promptsUsed) || 0;
+      document.getElementById('m-prompts').innerHTML =
+        usedP + '<span class="text-lg text-slate-500"> / ' + (maxP || '—') + '</span>';
+      document.getElementById('rl-window').textContent = (rl.windowHours || 2) + 'h';
+      document.getElementById('rl-remaining').textContent =
+        rl.remaining != null ? (rl.remaining + ' left') : '—';
+      document.getElementById('rl-status').textContent =
+        rl.status === 'over' ? 'at/over approx cap' :
+        rl.status === 'warn' ? 'near approx cap' :
+        rl.status === 'ok' ? 'under approx cap' : 'rate proxy off';
+      const rlBar = document.getElementById('rl-bar');
+      const rlPct = maxP > 0 ? Math.min(100, 100 * usedP / maxP) : 0;
+      rlBar.style.width = rlPct + '%';
+      rlBar.className = 'bar-fill ' + (rl.status === 'over' ? 'ctx-hot' : rl.status === 'warn' ? 'ctx-warn' : 'ctx-ok');
+
+      const rates = (pricing.rates) || {};
+      document.getElementById('budget-rates').textContent =
+        `${pricing.defaultModel || 'grok-4.5'} API: in $${rates.inputPerM ?? '—'} / cache $${rates.cachedInputPerM ?? '—'} / out $${rates.outputPerM ?? '—'} /1M`;
+      document.getElementById('pricing-note').textContent = pricing.note ||
+        'Subscription plan: $ is API-equivalent value, not an extra charge.';
+
+      // model breakdown
+      const mb = document.getElementById('model-breakdown');
+      const models = t.byModel || {};
+      const keys = Object.keys(models);
+      if (!keys.length) {
+        mb.innerHTML = '<div class="text-slate-500 text-xs">No model usage yet</div>';
+      } else {
+        mb.innerHTML = keys.map(k => {
+          const m = models[k];
+          return `<div>
+            <div class="flex justify-between gap-2">
+              <span class="font-mono text-slate-300 truncate">${esc(k)}</span>
+              <span class="metric-value font-mono text-violet-300">${fmt(m.totalTokens)} · ${fmtUsd(m.costUsd)}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-0.5">
+              in ${fmt(m.inputTokens)} · out ${fmt(m.outputTokens)} · cache ${fmt(m.cachedReadTokens)} · ${m.modelCalls || 0} calls
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // agents
+      const agents = state.agents || [];
+      document.getElementById('agent-count-label').textContent =
+        `${agents.filter(a => a.alive).length} alive · ${agents.length} listed`;
+      const host = document.getElementById('agents');
+      if (!agents.length) {
+        host.innerHTML = `<div class="glass rounded-2xl p-6 text-slate-500 text-sm">
+          No agents in <code class="text-slate-400">active_sessions.json</code>. Start a Grok session to see live usage.
+        </div>`;
+      } else {
+        host.innerHTML = agents.map(renderAgentCard).join('');
+      }
+
+      // table
+      const tbody = document.getElementById('table-body');
+      if (!agents.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-slate-500 text-sm">No agents</td></tr>';
+      } else {
+        tbody.innerHTML = agents.map(a => {
+          const u = a.usage || {};
+          return `<tr>
+            <td>
+              <div class="font-medium max-w-[220px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
+              <div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)} · ${a.pid || '—'}</div>
+            </td>
+            <td class="font-mono text-xs text-slate-400">${esc(a.model)}</td>
+            <td>${a.alive
+              ? '<span class="text-emerald-400 text-xs font-medium">alive</span>'
+              : '<span class="text-slate-500 text-xs">stale pid</span>'}</td>
+            <td class="text-right font-mono text-sky-400/90">${fmt(u.inputTokens)}</td>
+            <td class="text-right font-mono text-violet-400/90">${fmt(u.outputTokens)}</td>
+            <td class="text-right font-mono text-amber-400/90">${fmt(u.cachedReadTokens)}</td>
+            <td class="text-right font-mono text-rose-400/90">${fmt(u.reasoningTokens)}</td>
+            <td class="text-right font-mono font-medium">${fmt(u.totalTokens)}</td>
+            <td class="text-right font-mono text-emerald-400/90">${fmtUsd(u.costUsd)}</td>
+            <td class="text-right font-mono text-xs">${a.contextWindowUsage || 0}%</td>
+            <td class="text-right font-mono">${a.turnCount || 0}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // recent
+      const recent = state.recent || [];
+      const rb = document.getElementById('recent-body');
+      if (!recent.length) {
+        rb.innerHTML = '<tr><td colspan="6" class="text-slate-500 text-sm">No other sessions in the last 24h</td></tr>';
+      } else {
+        rb.innerHTML = recent.map(a => {
+          const u = a.usage || {};
+          return `<tr>
+            <td>
+              <div class="max-w-[280px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
+              <div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)}</div>
+            </td>
+            <td class="font-mono text-xs text-slate-400">${esc(a.model)}</td>
+            <td class="text-right font-mono">${fmt(u.totalTokens)} · <span class="text-emerald-400/80">${fmtUsd(u.costUsd)}</span></td>
+            <td class="text-right font-mono text-xs text-slate-400">${fmt(u.inputTokens)} / ${fmt(u.outputTokens)}</td>
+            <td class="text-right font-mono">${a.turnCount || 0}</td>
+            <td class="text-xs text-slate-500">${relTime(a.lastActiveAt || a.updatedAt)}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // chart
+      const hist = state.history || [];
+      if (chart && hist.length) {
+        chart.data.labels = hist.map(h => {
+          const d = new Date((h.t || 0) * 1000);
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        });
+        chart.data.datasets[0].data = hist.map(h => h.totalTokens || 0);
+        chart.data.datasets[1].data = hist.map(h => h.inputTokens || 0);
+        chart.data.datasets[2].data = hist.map(h => h.outputTokens || 0);
+        chart.update('none');
+      }
+
+      if (state.notes) {
+        document.getElementById('notes').textContent = state.notes.join(' ');
+      }
+
+      document.getElementById('live-badge').className =
+        'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
+      document.getElementById('live-badge').innerHTML =
+        '<div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div>LIVE';
+    }
+
+    async function poll() {
+      try {
+        const r = await fetch(API_BASE + '/api/state?_=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const state = await r.json();
+        lastError = null;
+        render(state);
+      } catch (e) {
+        lastError = e;
+        document.getElementById('live-badge').className =
+          'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5';
+        document.getElementById('live-badge').innerHTML =
+          '<div class="w-1.5 h-1.5 bg-rose-400 rounded-full"></div>OFFLINE';
+        document.getElementById('updated-at').textContent = 'error';
+        const host = document.getElementById('agents');
+        if (host) {
+          host.innerHTML = `<div class="glass rounded-2xl p-6 text-sm space-y-2">
+            <div class="text-rose-400 font-medium">Cannot reach the GrokTokens server</div>
+            <div class="text-slate-400">The page is open, but nothing is listening on <code class="text-slate-300">http://127.0.0.1:8765</code>.</div>
+            <div class="text-slate-500 text-xs">Start it with (no PowerShell):</div>
+            <pre class="text-xs bg-black/40 rounded-xl p-3 text-emerald-300/90 overflow-x-auto">Double-click Desktop → GrokTokens
+or Start-GrokTokens.bat / Start-GrokTokens.vbs</pre>
+            <div class="text-slate-500 text-xs">Do <b>not</b> run <code class="text-slate-400">.ps1</code> files. Then hard-refresh this page (Ctrl+F5).</div>
+          </div>`;
+        }
+      }
+    }
+
+    function refreshNow() { poll(); }
+
+    initChart();
+    poll();
+    setInterval(poll, POLL_MS);
+  </script>
+</body>
+</html>
