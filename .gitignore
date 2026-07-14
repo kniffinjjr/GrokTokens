@@ -1,0 +1,33 @@
+# Local runtime (never commit)
+config.json
+GrokTokens.log
+GrokTokens.pid
+GrokTokens.crash.log
+stdout.log
+stderr.log
+*.pyc
+__pycache__/
+.Python
+.venv/
+venv/
+env/
+
+# Debug / local dumps
+once-out.json
+once-err.txt
+spawn-watch.log
+*.disabled
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+
+# Optional local overrides
+config.local.json
+.env
+.env.*
