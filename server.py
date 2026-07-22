@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""GrokTokens local dashboard server - durable single-process HTTP server."""
+"""GrokTokens / MultiTokens local dashboard server.
+
+Supports multiple AI agent providers (Grok, Cursor, Anthropic, OpenAI, etc.)
+with per-agent active model tracking and accurate pricing.
+"""
 from __future__ import annotations
 
 import json
@@ -25,7 +29,7 @@ LOG_PATH = ROOT / "GrokTokens.log"
 PID_PATH = ROOT / "GrokTokens.pid"
 CRASH_PATH = ROOT / "GrokTokens.crash.log"
 
-# Published API rates (USD / 1M tokens). Estimates only; subscriptions differ.
+# Default config (deep-merged with config.json / config.example.json)
 _DEFAULT_CONFIG: dict[str, Any] = {
     "plan": {
         "name": "API pay-as-you-go",
@@ -43,6 +47,15 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "windowHours": 2,
         "maxPrompts": 100,
     },
+    "providers": [
+        {
+            "id": "grok",
+            "name": "Grok / Grok Build",
+            "type": "grok",
+            "enabled": True,
+            "home": "~/.grok",
+        }
+    ],
     "pricing": {
         "currency": "USD",
         "source": "https://docs.x.ai/developers/pricing",
@@ -52,21 +65,9 @@ _DEFAULT_CONFIG: dict[str, Any] = {
             "outputPerM": 6.0,
         },
         "models": {
-            "grok-4.5": {
-                "inputPerM": 2.0,
-                "cachedInputPerM": 0.5,
-                "outputPerM": 6.0,
-            },
-            "grok-4.3": {
-                "inputPerM": 1.25,
-                "cachedInputPerM": 0.2,
-                "outputPerM": 2.5,
-            },
-            "grok-build-0.1": {
-                "inputPerM": 1.0,
-                "cachedInputPerM": 0.2,
-                "outputPerM": 2.0,
-            },
+            "grok-4.5": {"inputPerM": 2.0, "cachedInputPerM": 0.5, "outputPerM": 6.0},
+            "grok-4.3": {"inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5},
+            "grok-build-0.1": {"inputPerM": 1.0, "cachedInputPerM": 0.2, "outputPerM": 2.0},
         },
     },
 }
@@ -107,7 +108,6 @@ def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
 
 def load_config() -> dict[str, Any]:
     cfg = json.loads(json.dumps(_DEFAULT_CONFIG))  # deep copy
-    # Prefer config.json; fall back to config.example.json on first clone
     raw = read_json(CONFIG_PATH)
     if raw is None:
         example = ROOT / "config.example.json"
@@ -125,6 +125,7 @@ def load_config() -> dict[str, Any]:
 
 
 def rates_for_model(cfg: dict[str, Any], model_id: str) -> dict[str, float]:
+    """Return pricing rates for the *active* model. Fuzzy prefix match supported."""
     pricing = cfg.get("pricing") or {}
     default = dict(pricing.get("default") or {})
     models = pricing.get("models") or {}
@@ -137,7 +138,6 @@ def rates_for_model(cfg: dict[str, Any], model_id: str) -> dict[str, float]:
             "cachedInputPerM": float(r.get("cachedInputPerM") or 0),
             "outputPerM": float(r.get("outputPerM") or 0),
         }
-    # fuzzy: prefix match
     for key, val in models.items():
         if mid.startswith(str(key)) or str(key).startswith(mid):
             if isinstance(val, dict):
@@ -164,12 +164,7 @@ def estimate_cost_usd(
     model_id: str = "grok-4.5",
     by_model: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Estimate USD from local turn usage at published API rates.
-
-    Local usage treats inputTokens as full prompt size (includes cache hits).
-    uncached = max(0, input - cached). Reasoning is not double-billed (usually
-    already reflected in output totals).
-    """
+    """Estimate USD using the *active model* rates (or per-model breakdown)."""
     if by_model:
         total = 0.0
         parts: list[dict[str, Any]] = []
@@ -229,7 +224,6 @@ def period_window(period: str) -> tuple[datetime | None, str]:
     if p == "day":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         return start, "day"
-    # month
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     return start, "month"
 
@@ -241,6 +235,12 @@ def read_json(path: Path) -> Any | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+def expand_path(p: str) -> Path:
+    """Expand ~ and %APPDATA% style paths."""
+    p = os.path.expandvars(os.path.expanduser(p or ""))
+    return Path(p)
 
 
 def rebuild_session_index(force: bool = False) -> None:
@@ -484,7 +484,9 @@ def agent_snapshot(
     cwd: str = "",
     opened_at: str = "",
     listed_active: bool = False,
+    provider: str = "grok",
 ) -> dict[str, Any]:
+    """Build snapshot for one agent. Always extracts and exposes the *active model*."""
     directory = find_session_dir(session_id)
     summary = read_json(directory / "summary.json") if directory else None
     signals = read_json(directory / "signals.json") if directory else None
@@ -511,11 +513,18 @@ def agent_snapshot(
     if not title:
         title = f"Session {session_id[:8]}"
 
+    # === ACTIVE MODEL TRACKING (critical for accurate pricing) ===
     model = "unknown"
     if summary and summary.get("current_model_id"):
         model = str(summary["current_model_id"])
     elif signals and signals.get("primaryModelId"):
         model = str(signals["primaryModelId"])
+    # Fallback: most recent model from byModel usage if available
+    if model == "unknown" and usage.get("byModel"):
+        # pick the model with the highest totalTokens as the "active" one
+        bym = usage["byModel"]
+        if bym:
+            model = max(bym.keys(), key=lambda k: int(bym[k].get("totalTokens") or 0))
 
     cfg = load_config()
     by_model = usage.get("byModel") or {}
@@ -556,11 +565,12 @@ def agent_snapshot(
         info_cwd = str(summary["info"].get("cwd") or "")
 
     return {
+        "provider": provider,
         "sessionId": session_id,
         "shortId": session_id[:8],
         "title": title,
         "agentName": agent_name,
-        "model": model,
+        "model": model,  # ACTIVE MODEL - used for pricing & UI badge
         "cwd": cwd or info_cwd,
         "pid": pid,
         "alive": alive,
@@ -585,17 +595,56 @@ def agent_snapshot(
     }
 
 
-def list_grok_processes() -> list[dict[str, Any]]:
-    """List grok/agent processes WITHOUT spawning any child console apps.
+def collect_grok_agents(cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    """Full Grok collector - preserves original behavior + tags provider."""
+    rebuild_session_index()
+    active_raw = read_json(ACTIVE_PATH) or []
+    if not isinstance(active_raw, list):
+        active_raw = [active_raw]
 
-    IMPORTANT: Never call tasklist/powershell/cmd here. The dashboard polls
-    /api/state every ~2s; spawning a console tool from pythonw flashes a
-    black window on every refresh (looks like a PowerShell popup).
+    agents: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for a in active_raw:
+        if not isinstance(a, dict):
+            continue
+        sid = str(a.get("session_id") or "").strip()
+        if not sid or " " in sid or sid in seen:
+            continue
+        seen.add(sid)
+        pid = a.get("pid") or 0
+        try:
+            pid = int(pid)
+        except Exception:
+            pid = 0
+        agents.append(
+            agent_snapshot(
+                sid,
+                pid=pid,
+                cwd=str(a.get("cwd") or ""),
+                opened_at=str(a.get("opened_at") or ""),
+                listed_active=True,
+                provider="grok",
+            )
+        )
+    return agents
+
+
+def collect_stub_provider(provider_cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    """Stub collector for Cursor / Anthropic / OpenAI.
+
+    Returns empty list for now. Extend by parsing provider_cfg['logsPath']
+    and extracting sessions + active model from log lines / JSON.
     """
+    # Future: implement log parsers that extract model names from request payloads
+    # e.g. search for "model": "claude-3-5-sonnet..." or "gpt-4o"
+    return []
+
+
+def list_grok_processes() -> list[dict[str, Any]]:
     procs: list[dict[str, Any]] = []
     seen: set[int] = set()
 
-    # 1) Prefer PIDs already recorded by Grok (no process scan needed)
     active = read_json(ACTIVE_PATH) or []
     if not isinstance(active, list):
         active = [active]
@@ -618,7 +667,6 @@ def list_grok_processes() -> list[dict[str, Any]]:
             }
         )
 
-    # 2) Optional silent scan via Toolhelp (no console process)
     try:
         import ctypes
         from ctypes import wintypes
@@ -673,40 +721,48 @@ def list_grok_processes() -> list[dict[str, Any]]:
 
 
 def get_dashboard_state() -> dict[str, Any]:
-    rebuild_session_index()
-    active_raw = read_json(ACTIVE_PATH) or []
-    if not isinstance(active_raw, list):
-        active_raw = [active_raw]
+    cfg = load_config()
+    providers_cfg = cfg.get("providers") or [{"id": "grok", "type": "grok", "enabled": True}]
 
-    agents: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    all_agents: list[dict[str, Any]] = []
+    provider_summaries: list[dict[str, Any]] = []
 
-    for a in active_raw:
-        if not isinstance(a, dict):
+    for pcfg in providers_cfg:
+        if not pcfg.get("enabled", True):
             continue
-        sid = str(a.get("session_id") or "").strip()
-        if not sid or " " in sid or sid in seen:
-            continue
-        seen.add(sid)
-        pid = a.get("pid") or 0
-        try:
-            pid = int(pid)
-        except Exception:
-            pid = 0
-        agents.append(
-            agent_snapshot(
-                sid,
-                pid=pid,
-                cwd=str(a.get("cwd") or ""),
-                opened_at=str(a.get("opened_at") or ""),
-                listed_active=True,
-            )
-        )
+        ptype = (pcfg.get("type") or pcfg.get("id") or "").lower()
+        pid = pcfg.get("id") or ptype
 
+        if ptype == "grok":
+            agents = collect_grok_agents(cfg)
+        else:
+            agents = collect_stub_provider(pcfg)
+
+        # Tag and collect active models for this provider
+        active_models: dict[str, int] = {}
+        for ag in agents:
+            ag["provider"] = pid
+            m = ag.get("model") or "unknown"
+            active_models[m] = active_models.get(m, 0) + 1
+
+        provider_summaries.append({
+            "id": pid,
+            "name": pcfg.get("name") or pid,
+            "type": ptype,
+            "enabled": True,
+            "agentCount": len(agents),
+            "aliveCount": sum(1 for a in agents if a.get("alive")),
+            "activeModels": active_models,  # model -> count of agents using it
+            "notes": pcfg.get("notes") or "",
+        })
+        all_agents.extend(agents)
+
+    # Recent Grok sessions (24h)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     recent: list[dict[str, Any]] = []
+    seen_ids = {a["sessionId"] for a in all_agents}
     for sid, path in list(_session_index.items()):
-        if sid in seen:
+        if sid in seen_ids:
             continue
         summary = read_json(Path(path) / "summary.json")
         if not summary:
@@ -718,7 +774,7 @@ def get_dashboard_state() -> dict[str, Any]:
             last = last.replace(tzinfo=timezone.utc)
         if last < cutoff:
             continue
-        snap = agent_snapshot(sid, listed_active=False)
+        snap = agent_snapshot(sid, listed_active=False, provider="grok")
         if snap["usage"]["totalTokens"] == 0 and snap["turnCount"] == 0:
             continue
         recent.append(snap)
@@ -730,10 +786,10 @@ def get_dashboard_state() -> dict[str, Any]:
     recent.sort(key=sort_key, reverse=True)
     recent = recent[:15]
 
-    cfg = load_config()
+    # Totals across all providers
     totals = {
-        "agentsAlive": sum(1 for a in agents if a["alive"]),
-        "agentsListed": len(agents),
+        "agentsAlive": sum(1 for a in all_agents if a["alive"]),
+        "agentsListed": len(all_agents),
         "inputTokens": 0,
         "outputTokens": 0,
         "cachedReadTokens": 0,
@@ -743,9 +799,11 @@ def get_dashboard_state() -> dict[str, Any]:
         "contextTokensUsed": 0,
         "costUsd": 0.0,
         "byModel": {},
+        "byProvider": {},
     }
-    for ag in agents:
+    for ag in all_agents:
         u = ag["usage"]
+        prov = ag.get("provider") or "unknown"
         totals["inputTokens"] += u["inputTokens"]
         totals["outputTokens"] += u["outputTokens"]
         totals["cachedReadTokens"] += u["cachedReadTokens"]
@@ -754,6 +812,13 @@ def get_dashboard_state() -> dict[str, Any]:
         totals["modelCalls"] += u["modelCalls"]
         totals["contextTokensUsed"] += ag["contextTokensUsed"]
         totals["costUsd"] += float(u.get("costUsd") or 0)
+
+        if prov not in totals["byProvider"]:
+            totals["byProvider"][prov] = {"totalTokens": 0, "costUsd": 0.0, "agents": 0}
+        totals["byProvider"][prov]["totalTokens"] += u["totalTokens"]
+        totals["byProvider"][prov]["costUsd"] += float(u.get("costUsd") or 0)
+        totals["byProvider"][prov]["agents"] += 1
+
         for mk, bm in (u.get("byModel") or {}).items():
             if mk not in totals["byModel"]:
                 totals["byModel"][mk] = {
@@ -768,14 +833,13 @@ def get_dashboard_state() -> dict[str, Any]:
             tm = totals["byModel"][mk]
             for k in ("inputTokens", "outputTokens", "cachedReadTokens", "reasoningTokens", "totalTokens", "modelCalls"):
                 tm[k] += int(bm.get(k) or 0)
-            # per-model cost from agent cost breakdown if present
             c = (u.get("cost") or {}).get("byModel") or []
             for part in c:
                 if part.get("model") == mk:
                     tm["costUsd"] += float(part.get("costUsd") or 0)
     totals["costUsd"] = round(totals["costUsd"], 6)
 
-    # Period spend (day/month) across sessions for budget tracking
+    # Period / budget (same as before)
     limits = cfg.get("limits") or {}
     period_start, period_name = period_window(str(limits.get("period") or "month"))
     budget = float(limits.get("budgetUsd") or 0)
@@ -807,12 +871,11 @@ def get_dashboard_state() -> dict[str, Any]:
                 last = last.replace(tzinfo=timezone.utc)
             if last < period_start:
                 continue
-            # reuse active snapshot if already loaded
-            snap = next((a for a in agents if a["sessionId"] == sid), None)
+            snap = next((a for a in all_agents if a["sessionId"] == sid), None)
             if snap is None:
                 snap = next((a for a in recent if a["sessionId"] == sid), None)
             if snap is None:
-                snap = agent_snapshot(sid, listed_active=False)
+                snap = agent_snapshot(sid, listed_active=False, provider="grok")
             u = snap["usage"]
             if int(u.get("totalTokens") or 0) == 0 and int(snap.get("turnCount") or 0) == 0:
                 continue
@@ -831,7 +894,7 @@ def get_dashboard_state() -> dict[str, Any]:
         "usedPercent": None,
         "period": period_name,
         "softWarnPercent": warn_pct,
-        "status": "ok",  # ok | warn | over | unlimited
+        "status": "ok",
     }
     spent = float(budget_info["spentUsd"] or 0)
     if budget <= 0 or period_name == "none":
@@ -844,7 +907,6 @@ def get_dashboard_state() -> dict[str, Any]:
         elif budget_info["usedPercent"] >= warn_pct:
             budget_info["status"] = "warn"
 
-    # Plan + rate-limit (subscription) vs API retail estimate
     plan_cfg = cfg.get("plan") or {}
     plan_info = {
         "name": plan_cfg.get("name") or "Unknown",
@@ -862,20 +924,10 @@ def get_dashboard_state() -> dict[str, Any]:
         "remaining": None,
         "usedPercent": None,
         "status": "disabled",
-        "note": (
-            "Optional prompt-cap proxy using active session turn counts. "
-            "Tune maxPrompts/windowHours in config.json. "
-            "Each dashboard turn ≈ one user prompt. Product quotas may differ."
-        ),
+        "note": "Optional prompt-cap proxy using active session turn counts.",
     }
     if rate_limit_info["enabled"] and rate_limit_info["maxPrompts"] > 0:
-        window_h = max(0.1, rate_limit_info["windowHours"])
-        cutoff_rl = datetime.now(timezone.utc) - timedelta(hours=window_h)
-        prompts_used = 0
-        for ag in agents:
-            # Active sessions: use full turn count as proxy for recent prompts
-            # (sessions open now are the ones burning the rolling window)
-            prompts_used += int(ag.get("turnCount") or 0)
+        prompts_used = sum(int(ag.get("turnCount") or 0) for ag in all_agents)
         rate_limit_info["promptsUsed"] = prompts_used
         rate_limit_info["remaining"] = max(0, rate_limit_info["maxPrompts"] - prompts_used)
         rate_limit_info["usedPercent"] = round(
@@ -888,7 +940,6 @@ def get_dashboard_state() -> dict[str, Any]:
         else:
             rate_limit_info["status"] = "ok"
 
-    # Pricing card for UI
     default_rates = rates_for_model(cfg, "grok-4.5")
     is_sub = str(plan_info.get("billing") or "").lower() == "subscription"
     pricing_info = {
@@ -900,14 +951,10 @@ def get_dashboard_state() -> dict[str, Any]:
         "isApiEquivalent": is_sub,
         "note": (
             "Subscription plan: flat fee, not per-token API billing. "
-            "USD shown is API-equivalent retail value of local token usage "
-            f"(published rates). Plan fee setting: ${plan_info.get('monthlyUsd') or '?'}/mo. "
-            "Not an official invoice. Server tool fees not included."
+            "USD shown is API-equivalent retail value of local token usage. "
+            f"Plan fee: ${plan_info.get('monthlyUsd') or '?'}/mo. Not an official invoice."
             if is_sub
-            else (
-                "Estimated from local turn_completed usage at published xAI API rates. "
-                "Not an official invoice. Server tool fees not included."
-            )
+            else "Estimated from local usage at published rates. Not an official invoice."
         ),
     }
 
@@ -938,22 +985,22 @@ def get_dashboard_state() -> dict[str, Any]:
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "serverStarted": _server_started.isoformat(),
         "grokHome": str(GROK_HOME),
+        "providers": provider_summaries,
         "totals": totals,
         "period": period,
         "budget": budget_info,
         "plan": plan_info,
         "rateLimit": rate_limit_info,
         "pricing": pricing_info,
-        "agents": agents,
+        "agents": all_agents,
         "recent": recent,
         "history": list(_history),
         "processes": list_grok_processes(),
         "notes": [
-            "Totals sum per-turn usage from turn_completed events in each session updates.jsonl.",
-            "inputTokens is prompt size (includes cache hits); cachedReadTokens is the cache-hit portion.",
-            "USD is an estimate at published API rates (config.json). Not official billing.",
-            "Context tokens = current context window fill (signals.json), not cumulative spend.",
-            f"Budget: edit {CONFIG_PATH} limits.budgetUsd / limits.period (day|month|none).",
+            "Multi-provider dashboard. Each agent reports its *active model* for accurate pricing.",
+            "Grok fully supported. Cursor/Anthropic/OpenAI are stubs — enable in config and extend collectors.",
+            "USD estimates use the active model rates from config.json pricing.models.",
+            f"Budget: edit {CONFIG_PATH} limits.budgetUsd / limits.period.",
         ],
     }
 
@@ -1046,7 +1093,6 @@ def main() -> int:
     except OSError:
         pass
 
-    # allow rebinding quickly after crash
     HTTPServer.allow_reuse_address = True
     try:
         server = HTTPServer((HOST, PORT), Handler)
