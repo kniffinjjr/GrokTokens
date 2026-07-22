@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GrokTokens — Agent Token Dashboard</title>
+  <title>GrokTokens — Multi-Provider Agent Token Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
@@ -36,6 +36,13 @@
     .agent-card { transition: border-color 0.2s, transform 0.15s; }
     .agent-card:hover { border-color: rgba(96,165,250,0.35); }
     .agent-card.dead { opacity: 0.72; }
+    .model-badge {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.15rem 0.5rem; border-radius: 9999px;
+      font-size: 0.65rem; font-family: 'JetBrains Mono', monospace;
+      background: rgba(139, 92, 246, 0.15); color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     table.tok th {
@@ -61,7 +68,7 @@
         </div>
         <div>
           <h1 class="font-display text-2xl font-semibold tracking-tight">GrokTokens</h1>
-          <p class="text-xs text-slate-500">Live token consumption · local agents only</p>
+          <p class="text-xs text-slate-500">Multi-provider · live tokens + active models</p>
         </div>
         <div id="live-badge" class="ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
           <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div>
@@ -81,8 +88,13 @@
       </div>
     </header>
 
+    <!-- Providers summary -->
+    <section id="providers-section" class="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- filled by JS -->
+    </section>
+
     <!-- Plan / budget / rate limit -->
-    <section class="grid md:grid-cols-3 gap-3 mt-6">
+    <section class="grid md:grid-cols-3 gap-3 mt-4">
       <div class="glass rounded-2xl p-4 md:col-span-2">
         <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
           <div>
@@ -105,9 +117,9 @@
         <div class="bar-track h-2"><div id="budget-bar" class="bar-fill ctx-ok" style="width:0%"></div></div>
         <div class="flex justify-between text-[11px] text-slate-500 mt-1.5">
           <span id="budget-pct">0% of plan fee (value)</span>
-          <span id="budget-rates" class="font-mono">grok-4.5 API rates</span>
+          <span id="budget-rates" class="font-mono">active model rates</span>
         </div>
-        <p class="text-[11px] text-slate-600 mt-2" id="pricing-note">Subscription: flat fee, not per-token. $ = API equivalent.</p>
+        <p class="text-[11px] text-slate-600 mt-2" id="pricing-note">Pricing uses the *active model* reported by each agent.</p>
       </div>
       <div class="glass rounded-2xl p-4">
         <div class="section-title mb-1">Rate limit (approx)</div>
@@ -131,7 +143,7 @@
       <div class="glass rounded-2xl p-4">
         <div class="section-title mb-1">Active agents</div>
         <div class="metric-value font-display text-3xl font-semibold text-emerald-400" id="m-agents">0</div>
-        <div class="text-xs text-slate-500 mt-1"><span id="m-agents-listed">0</span> listed · <span id="m-procs">0</span> grok procs</div>
+        <div class="text-xs text-slate-500 mt-1"><span id="m-agents-listed">0</span> listed · <span id="m-procs">0</span> procs</div>
       </div>
       <div class="glass rounded-2xl p-4">
         <div class="section-title mb-1">Total tokens</div>
@@ -172,7 +184,7 @@
         </div>
       </div>
       <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-3">By model (active)</div>
+        <div class="section-title mb-3">By active model</div>
         <div id="model-breakdown" class="space-y-3 text-sm">
           <div class="text-slate-500 text-xs">No data yet</div>
         </div>
@@ -202,8 +214,8 @@
         <table class="tok w-full">
           <thead>
             <tr>
-              <th>Agent</th>
-              <th>Model</th>
+              <th>Provider / Agent</th>
+              <th>Active Model</th>
               <th>Status</th>
               <th class="text-right!">Input</th>
               <th class="text-right!">Output</th>
@@ -216,7 +228,7 @@
             </tr>
           </thead>
           <tbody id="table-body">
-            <tr><td colspan="10" class="text-slate-500 text-sm">No agents</td></tr>
+            <tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr>
           </tbody>
         </table>
       </div>
@@ -230,7 +242,7 @@
           <thead>
             <tr>
               <th>Title</th>
-              <th>Model</th>
+              <th>Active Model</th>
               <th class="text-right!">Total tokens</th>
               <th class="text-right!">In / Out</th>
               <th class="text-right!">Turns</th>
@@ -245,7 +257,7 @@
     </section>
 
     <footer class="mt-10 text-xs text-slate-600 space-y-1 border-t border-white/5 pt-4">
-      <p>Data sources: <code class="text-slate-500">~/.grok/active_sessions.json</code>, session <code class="text-slate-500">signals.json</code>, <code class="text-slate-500">summary.json</code>, and <code class="text-slate-500">turn_completed</code> usage in <code class="text-slate-500">updates.jsonl</code>.</p>
+      <p>Data sources: <code class="text-slate-500">~/.grok/...</code> + configurable provider log paths. Each agent reports its <strong>active model</strong> for accurate pricing.</p>
       <p id="notes"></p>
       <p class="text-slate-700">100% local · no network egress from this dashboard server</p>
     </footer>
@@ -253,7 +265,6 @@
 
   <script>
     const POLL_MS = 2000;
-    // Always hit the local server (works even if this HTML was opened as a file:// page)
     const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
       ? ''
       : 'http://127.0.0.1:8765';
@@ -312,7 +323,7 @@
     }
     function esc(s) {
       return String(s ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
       })[c]);
     }
 
@@ -395,6 +406,7 @@
       const lastLine = last
         ? `Last turn: ${fmt(last.totalTokens)} tok · ${last.apiDurationMs || 0}ms API · ${last.modelCalls || 0} calls`
         : 'No completed turns with usage yet';
+      const provider = a.provider || 'grok';
 
       return `
         <article class="agent-card glass rounded-2xl p-4 ${alive ? '' : 'dead'}">
@@ -404,8 +416,11 @@
                 <span class="w-2 h-2 rounded-full ${alive ? 'bg-emerald-400 status-dot' : 'bg-slate-600'}"></span>
                 <h3 class="font-medium truncate" title="${esc(a.title)}">${esc(a.title)}</h3>
               </div>
-              <div class="text-xs text-slate-500 font-mono truncate">
-                ${esc(a.shortId)} · pid ${a.pid || '—'} · ${esc(a.agentName)} · ${esc(a.model)}
+              <div class="text-xs text-slate-500 font-mono truncate mb-1">
+                ${esc(provider)} · ${esc(a.shortId)} · pid ${a.pid || '—'}
+              </div>
+              <div class="model-badge" title="Active model used for pricing">
+                ${esc(a.model || 'unknown')}
               </div>
             </div>
             <div class="text-right shrink-0">
@@ -446,7 +461,6 @@
             <span>Tools <b class="text-slate-300 font-medium">${a.toolCallCount || 0}</b></span>
             <span>Calls <b class="text-slate-300 font-medium">${u.modelCalls || 0}</b></span>
             <span>Duration <b class="text-slate-300 font-medium">${fmtDuration(a.sessionDurationSeconds)}</b></span>
-            <span>TTFT <b class="text-slate-300 font-medium">${a.avgTimeToFirstTokenMs || 0}ms</b></span>
             ${a.processRssBytes ? `<span>RSS <b class="text-slate-300 font-medium">${fmtBytes(a.processRssBytes)}</b></span>` : ''}
           </div>
           ${tools ? `<div class="flex flex-wrap gap-1 mt-2">${tools}</div>` : ''}
@@ -460,6 +474,27 @@
       const budget = state.budget || {};
       const period = state.period || {};
       const pricing = state.pricing || {};
+
+      // Providers cards
+      const provHost = document.getElementById('providers-section');
+      const providers = state.providers || [];
+      if (providers.length) {
+        provHost.innerHTML = providers.map(p => {
+          const models = Object.entries(p.activeModels || {}).map(([m, c]) =>
+            `<span class="model-badge">${esc(m)} ×${c}</span>`
+          ).join(' ');
+          return `<div class="glass rounded-xl p-3">
+            <div class="flex items-center justify-between mb-1">
+              <div class="font-medium text-sm">${esc(p.name || p.id)}</div>
+              <div class="text-xs text-emerald-400">${p.aliveCount || 0} alive</div>
+            </div>
+            <div class="text-xs text-slate-500 mb-2">${p.agentCount || 0} agents</div>
+            <div class="flex flex-wrap gap-1">${models || '<span class="text-slate-600 text-xs">no active models</span>'}</div>
+          </div>`;
+        }).join('');
+      } else {
+        provHost.innerHTML = '';
+      }
 
       document.getElementById('m-agents').textContent = t.agentsAlive ?? 0;
       document.getElementById('m-agents-listed').textContent = t.agentsListed ?? 0;
@@ -535,9 +570,9 @@
 
       const rates = (pricing.rates) || {};
       document.getElementById('budget-rates').textContent =
-        `${pricing.defaultModel || 'grok-4.5'} API: in $${rates.inputPerM ?? '—'} / cache $${rates.cachedInputPerM ?? '—'} / out $${rates.outputPerM ?? '—'} /1M`;
+        `active model rates · default ${pricing.defaultModel || 'grok-4.5'}`;
       document.getElementById('pricing-note').textContent = pricing.note ||
-        'Subscription plan: $ is API-equivalent value, not an extra charge.';
+        'Pricing uses the active model reported by each agent.';
 
       // model breakdown
       const mb = document.getElementById('model-breakdown');
@@ -567,7 +602,7 @@
       const host = document.getElementById('agents');
       if (!agents.length) {
         host.innerHTML = `<div class="glass rounded-2xl p-6 text-slate-500 text-sm">
-          No agents in <code class="text-slate-400">active_sessions.json</code>. Start a Grok session to see live usage.
+          No agents found. Start a Grok session or enable additional providers in config.json.
         </div>`;
       } else {
         host.innerHTML = agents.map(renderAgentCard).join('');
@@ -576,16 +611,16 @@
       // table
       const tbody = document.getElementById('table-body');
       if (!agents.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-slate-500 text-sm">No agents</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr>';
       } else {
         tbody.innerHTML = agents.map(a => {
           const u = a.usage || {};
           return `<tr>
             <td>
               <div class="font-medium max-w-[220px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
-              <div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)} · ${a.pid || '—'}</div>
+              <div class="text-[11px] text-slate-500 font-mono">${esc(a.provider || 'grok')} · ${esc(a.shortId)}</div>
             </td>
-            <td class="font-mono text-xs text-slate-400">${esc(a.model)}</td>
+            <td><span class="model-badge">${esc(a.model || 'unknown')}</span></td>
             <td>${a.alive
               ? '<span class="text-emerald-400 text-xs font-medium">alive</span>'
               : '<span class="text-slate-500 text-xs">stale pid</span>'}</td>
@@ -614,7 +649,7 @@
               <div class="max-w-[280px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
               <div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)}</div>
             </td>
-            <td class="font-mono text-xs text-slate-400">${esc(a.model)}</td>
+            <td><span class="model-badge">${esc(a.model || 'unknown')}</span></td>
             <td class="text-right font-mono">${fmt(u.totalTokens)} · <span class="text-emerald-400/80">${fmtUsd(u.costUsd)}</span></td>
             <td class="text-right font-mono text-xs text-slate-400">${fmt(u.inputTokens)} / ${fmt(u.outputTokens)}</td>
             <td class="text-right font-mono">${a.turnCount || 0}</td>
@@ -664,11 +699,8 @@
         if (host) {
           host.innerHTML = `<div class="glass rounded-2xl p-6 text-sm space-y-2">
             <div class="text-rose-400 font-medium">Cannot reach the GrokTokens server</div>
-            <div class="text-slate-400">The page is open, but nothing is listening on <code class="text-slate-300">http://127.0.0.1:8765</code>.</div>
-            <div class="text-slate-500 text-xs">Start it with (no PowerShell):</div>
-            <pre class="text-xs bg-black/40 rounded-xl p-3 text-emerald-300/90 overflow-x-auto">Double-click Desktop → GrokTokens
-or Start-GrokTokens.bat / Start-GrokTokens.vbs</pre>
-            <div class="text-slate-500 text-xs">Do <b>not</b> run <code class="text-slate-400">.ps1</code> files. Then hard-refresh this page (Ctrl+F5).</div>
+            <div class="text-slate-400">Nothing listening on <code class="text-slate-300">http://127.0.0.1:8765</code>.</div>
+            <div class="text-slate-500 text-xs">Start with Start-GrokTokens.bat / .vbs then hard-refresh (Ctrl+F5).</div>
           </div>`;
         }
       }
