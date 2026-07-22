@@ -1,18 +1,29 @@
-# GrokTokens
+# GrokTokens (Multi-Provider)
 
-**Local live dashboard** for [Grok](https://x.ai) / [Grok Build](https://x.ai/news/grok-build-cli) token usage across agents and sessions on your machine.
+**Local live dashboard** for token usage and estimated costs across AI coding agents.
+
+Originally built for [Grok](https://x.ai) / [Grok Build](https://x.ai/news/grok-build-cli). Now supports a multi-provider architecture so you can add Cursor, Anthropic/Claude, OpenAI, and others.
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 ![Python 3](https://img.shields.io/badge/python-3.10%2B-yellow.svg)
 
-- Reads only local Grok session files under `~/.grok` (or `$GROK_HOME`)
-- Binds to **`127.0.0.1` only** — no cloud, no telemetry from this app
-- Estimates **USD** from published [xAI API rates](https://docs.x.ai/developers/pricing)
-- Supports **subscription plans** (e.g. X Premium+, SuperGrok) as **API-equivalent value**, not invoices
-- Optional soft **budget** bar and approximate **prompt rate-limit** proxy
+- Reads only **local** session/log files — no cloud, no telemetry
+- Binds to **`127.0.0.1` only**
+- Tracks the **active model** per agent and applies the correct published rates
+- Estimates **USD** from published provider rates
+- Supports **subscription plans** as API-equivalent value
 
-> **Not affiliated with xAI.** Token totals and dollars are **estimates** from local `turn_completed` usage. They are **not** your official bill. Subscription users are not charged per token the same way as the public API.
+> **Not affiliated with xAI, Anthropic, OpenAI, or Cursor.** Token totals and dollars are **estimates** from local data. They are **not** your official bill.
+
+---
+
+## What's New (Multi-Provider)
+
+- `config.json` now has a `providers` array. Enable/disable Grok, Cursor, Anthropic, OpenAI independently.
+- Every agent reports its **active model** (from session metadata or logs). Pricing uses that model.
+- Dashboard shows provider cards with active model badges.
+- Grok collector is fully functional. Cursor / Anthropic / OpenAI are **stubs** ready for you to point at log paths and extend the parsers.
 
 ---
 
@@ -20,7 +31,7 @@
 
 - **Windows 10/11**
 - **Python 3.10+** with `pythonw.exe` (recommended) or `python.exe`
-- [Grok CLI / Grok Build](https://x.ai/cli) installed so sessions exist under `~/.grok`
+- Grok CLI / Grok Build installed so sessions exist under `~/.grok` (for the Grok provider)
 
 No pip packages required (stdlib only).
 
@@ -59,36 +70,33 @@ Optional env vars:
 
 Edit **`config.json`** (gitignored). Start from **`config.example.json`**.
 
-### API pay-as-you-go
+### Providers
 
 ```json
-"plan": { "name": "API pay-as-you-go", "billing": "api", "monthlyUsd": 0 },
-"limits": { "period": "month", "budgetUsd": 100, "softWarnPercent": 80 }
+"providers": [
+  {
+    "id": "grok",
+    "name": "Grok / Grok Build",
+    "type": "grok",
+    "enabled": true,
+    "home": "~/.grok"
+  },
+  {
+    "id": "cursor",
+    "name": "Cursor",
+    "type": "cursor",
+    "enabled": false,
+    "logsPath": "%APPDATA%/Cursor/User/globalStorage"
+  }
+]
 ```
 
-### Subscription (Premium+ / SuperGrok)
+- **Active model tracking**: Grok reads `current_model_id` / `primaryModelId` from session files. Other providers should extract the model string from their logs so pricing is accurate.
+- Pricing table under `pricing.models` already includes common Claude and GPT rates. Add more as needed.
 
-```json
-"plan": {
-  "name": "X Premium+",
-  "billing": "subscription",
-  "monthlyUsd": 40
-},
-"limits": {
-  "period": "month",
-  "budgetUsd": 40,
-  "softWarnPercent": 100
-},
-"rateLimits": {
-  "enabled": true,
-  "windowHours": 2,
-  "maxPrompts": 100
-}
-```
+### Plan / Budget / Rate limits
 
-- **`budgetUsd`**: soft bar (for subs, often set equal to monthly plan fee).
-- **`rateLimits`**: coarse proxy using **active session turn counts** vs a prompt cap. Community-reported chat caps vary; **Grok Build may differ**. Tune to taste.
-- **`pricing.models`**: USD per **1M tokens** (input / cached input / output). Update when xAI changes list prices.
+Same as before — see comments in `config.example.json`.
 
 ---
 
@@ -96,22 +104,22 @@ Edit **`config.json`** (gitignored). Start from **`config.example.json`**.
 
 | Metric | Source |
 |--------|--------|
-| Token totals | Sum of `usage` on `turn_completed` events in each session's `updates.jsonl` |
-| Input / cache / output | Same; **input** is treated as full prompt size (includes cache hits) |
-| Estimated $ | `(uncached×inRate + cache×cacheRate + out×outRate) / 1e6` |
-| Context % | `signals.json` current window fill (not cumulative spend) |
-| Active agents | `~/.grok/active_sessions.json` + process check |
+| Token totals | Per-turn usage (Grok: `turn_completed` in `updates.jsonl`) |
+| **Active model** | Session summary / signals (Grok) or log parsing (others) |
+| Estimated $ | Rates for the *active model* (or per-model breakdown) |
+| Context % | Current window fill |
+| Active agents | Provider-specific active session lists + process check |
 
-**Not included:** server-side tool fees (e.g. web search), image/video, official console balance, or unpublished plan quotas.
+**Not included:** server-side tool fees, image/video generation, official console balances, or unpublished plan quotas.
 
 ---
 
 ## Privacy & safety
 
 - Serves **localhost only**
-- Does **not** read `auth.json` or send data off-machine
-- Does **not** spawn console tools on each refresh (no `tasklist` / PowerShell on poll)
-- Keep `config.json` local if it contains anything you consider private
+- Does **not** read auth tokens or send data off-machine
+- Does **not** spawn console tools on each refresh
+- Keep `config.json` local if it contains private paths
 
 ---
 
@@ -119,16 +127,13 @@ Edit **`config.json`** (gitignored). Start from **`config.example.json`**.
 
 ```text
 GrokTokens/
-  server.py              # HTTP API + collectors
+  server.py              # HTTP API + multi-provider collectors
   dashboard.html         # Live UI (polls /api/state)
-  config.example.json    # Template (commit this)
+  config.example.json    # Template with providers + model rates
   config.json            # Your local settings (gitignored)
   Start-GrokTokens.vbs   # Silent start
   Stop-GrokTokens.vbs    # Silent stop
-  Start-GrokTokens.bat
-  Stop-GrokTokens.bat
-  LICENSE                # MIT
-  README.md
+  ...
 ```
 
 ### API endpoints
@@ -137,7 +142,18 @@ GrokTokens/
 |------|-------------|
 | `GET /` | Dashboard |
 | `GET /api/health` | `{ "ok": true, "pid": ... }` |
-| `GET /api/state` | Full snapshot (agents, totals, period, budget, plan, rateLimit, pricing) |
+| `GET /api/state` | Full snapshot (providers, agents with active models, totals, budget, ...) |
+
+---
+
+## Extending a provider (Cursor / Anthropic / OpenAI)
+
+1. Set `"enabled": true` and the correct `logsPath` in `config.json`.
+2. Implement a collector in `server.py` (see `collect_stub_provider`) that:
+   - Scans the logs / usage files
+   - Builds agent snapshots with a real `model` field (the **active** model)
+   - Returns the same shape as Grok agents
+3. Restart the server.
 
 ---
 
@@ -147,15 +163,15 @@ GrokTokens/
 |---------|-----|
 | Offline / cannot connect | Run `Start-GrokTokens.bat`; confirm nothing else uses the port |
 | `pythonw` not found | Install Python from python.org and enable PATH |
-| Wrong home directory | Set `GROK_HOME` to your Grok data root |
-| Black window flashes every few seconds | Use latest `server.py` (old versions called `tasklist` every poll) |
-| $ looks wrong | Adjust `pricing` in `config.json`; remember subscription is not API billing |
+| Wrong home directory | Set `GROK_HOME` or edit provider `home` / `logsPath` |
+| $ looks wrong | Check the **active model** badge and the rates in `pricing.models` |
+| Other providers empty | They are stubs — enable + implement log parsers |
 
 ---
 
 ## Disclaimer
 
-Provided **as-is** under the MIT License. Unofficial community tool. Session file formats may change with Grok updates. Always verify billing in the official xAI / X product UI.
+Provided **as-is** under the MIT License. Unofficial community tool. Session/log formats may change. Always verify billing in the official product UIs.
 
 ---
 
