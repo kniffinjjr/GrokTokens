@@ -11,23 +11,11 @@
     body { font-family: 'Inter', system-ui, sans-serif; background: #07090f; }
     .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif; }
     .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-    .glass {
-      background: rgba(255,255,255,0.035);
-      border: 1px solid rgba(255,255,255,0.07);
-    }
+    .glass { background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07); }
     .metric-value { font-variant-numeric: tabular-nums; }
-    .section-title {
-      font-size: 0.7rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-weight: 600;
-      color: #64748b;
-    }
+    .section-title { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: #64748b; }
     .status-dot { animation: pulse 2s infinite; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.45; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
     .bar-track { background: rgba(255,255,255,0.06); height: 6px; border-radius: 999px; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
     .ctx-ok { background: linear-gradient(90deg, #22c55e, #4ade80); }
@@ -36,23 +24,13 @@
     .agent-card { transition: border-color 0.2s, transform 0.15s; }
     .agent-card:hover { border-color: rgba(96,165,250,0.35); }
     .agent-card.dead { opacity: 0.72; }
-    .model-badge {
-      display: inline-flex; align-items: center; gap: 0.25rem;
-      padding: 0.15rem 0.5rem; border-radius: 9999px;
-      font-size: 0.65rem; font-family: 'JetBrains Mono', monospace;
-      background: rgba(139, 92, 246, 0.15); color: #c4b5fd;
-      border: 1px solid rgba(139, 92, 246, 0.3);
-    }
+    .model-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .path-input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.4rem 0.6rem; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: #e2e8f0; width: 100%; }
+    .path-input:focus { outline: none; border-color: rgba(139, 92, 246, 0.5); }
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    table.tok th {
-      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
-      color: #64748b; font-weight: 600; text-align: left; padding: 0.5rem 0.75rem;
-    }
-    table.tok td {
-      padding: 0.65rem 0.75rem; border-top: 1px solid rgba(255,255,255,0.05);
-      font-size: 0.875rem; vertical-align: middle;
-    }
+    table.tok th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; font-weight: 600; text-align: left; padding: 0.5rem 0.75rem; }
+    table.tok td { padding: 0.65rem 0.75rem; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.875rem; vertical-align: middle; }
     table.tok tr:hover td { background: rgba(255,255,255,0.025); }
   </style>
 </head>
@@ -71,43 +49,47 @@
           <p class="text-xs text-slate-500">Multi-provider · live tokens + active models</p>
         </div>
         <div id="live-badge" class="ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
-          <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div>
-          LIVE
+          <div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div> LIVE
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-3 text-sm">
-        <div class="glass rounded-xl px-3 py-1.5 text-xs text-slate-400">
-          Refresh <span id="poll-label" class="text-slate-200 font-medium">2s</span>
-        </div>
-        <div class="glass rounded-xl px-3 py-1.5 text-xs text-slate-400">
-          Updated <span id="updated-at" class="text-slate-200 font-mono">—</span>
-        </div>
-        <button onclick="refreshNow()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium transition">
-          Refresh
+        <button onclick="toggleProvidersMenu()" class="px-3 py-1.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 text-xs font-medium transition text-violet-200">
+          Providers & Paths
         </button>
+        <div class="glass rounded-xl px-3 py-1.5 text-xs text-slate-400">Updated <span id="updated-at" class="text-slate-200 font-mono">—</span></div>
+        <button onclick="refreshNow()" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium transition">Refresh</button>
       </div>
     </header>
 
-    <!-- Providers summary -->
-    <section id="providers-section" class="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <!-- filled by JS -->
+    <!-- Providers & Paths Menu (collapsible) -->
+    <section id="providers-menu" class="hidden mt-4 glass rounded-2xl p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="font-display text-lg font-semibold">Providers & Paths</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Locate other local agents and set their data paths. Changes are saved to config.json.</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="runDiscover()" class="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/30 text-xs font-medium text-sky-200 transition">Scan for local agents</button>
+          <button onclick="saveProviders()" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-xs font-medium text-emerald-200 transition">Save paths</button>
+        </div>
+      </div>
+      <div id="providers-editor" class="space-y-3">
+        <div class="text-slate-500 text-sm">Loading…</div>
+      </div>
+      <div id="discover-status" class="mt-3 text-xs text-slate-500"></div>
     </section>
 
-    <!-- Plan / budget / rate limit -->
+    <!-- Providers summary cards -->
+    <section id="providers-section" class="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3"></section>
+
+    <!-- Plan / budget (abbreviated for space – same as previous) -->
     <section class="grid md:grid-cols-3 gap-3 mt-4">
       <div class="glass rounded-2xl p-4 md:col-span-2">
         <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
           <div>
-            <div class="section-title mb-1">
-              <span id="plan-name">Plan</span>
-              · API-equivalent value
-              (<span id="budget-period" class="text-slate-500">month</span>)
-            </div>
+            <div class="section-title mb-1"><span id="plan-name">Plan</span> · API-equivalent value (<span id="budget-period" class="text-slate-500">month</span>)</div>
             <div class="metric-value font-display text-3xl font-semibold" id="m-spent">$0.00</div>
-            <div class="text-xs text-slate-500 mt-1">
-              retail API value of tokens used · vs plan fee
-              <span id="m-budget-cap" class="text-slate-300">$40</span>/mo
-            </div>
+            <div class="text-xs text-slate-500 mt-1">retail API value · vs plan fee <span id="m-budget-cap" class="text-slate-300">$40</span>/mo</div>
           </div>
           <div class="text-right">
             <div id="budget-status" class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">OK</div>
@@ -116,82 +98,50 @@
         </div>
         <div class="bar-track h-2"><div id="budget-bar" class="bar-fill ctx-ok" style="width:0%"></div></div>
         <div class="flex justify-between text-[11px] text-slate-500 mt-1.5">
-          <span id="budget-pct">0% of plan fee (value)</span>
+          <span id="budget-pct">0%</span>
           <span id="budget-rates" class="font-mono">active model rates</span>
         </div>
-        <p class="text-[11px] text-slate-600 mt-2" id="pricing-note">Pricing uses the *active model* reported by each agent.</p>
+        <p class="text-[11px] text-slate-600 mt-2" id="pricing-note">Pricing uses the active model reported by each agent.</p>
       </div>
       <div class="glass rounded-2xl p-4">
         <div class="section-title mb-1">Rate limit (approx)</div>
         <div class="metric-value font-display text-3xl font-semibold text-sky-400" id="m-prompts">0<span class="text-lg text-slate-500"> / —</span></div>
-        <div class="text-xs text-slate-500 mt-1">user turns on active agents · <span id="rl-window">2h</span> window proxy</div>
+        <div class="text-xs text-slate-500 mt-1">user turns · <span id="rl-window">2h</span> window</div>
         <div class="bar-track h-1.5 mt-3"><div id="rl-bar" class="bar-fill ctx-ok" style="width:0%"></div></div>
         <div class="flex justify-between text-[11px] text-slate-500 mt-1">
           <span id="rl-status">—</span>
           <span id="rl-remaining">— left</span>
         </div>
         <div class="mt-4 pt-3 border-t border-white/5">
-          <div class="section-title mb-1">Active sessions · API $</div>
+          <div class="section-title mb-1">Active · API $</div>
           <div class="metric-value font-mono text-lg text-emerald-400" id="m-active-cost">$0.00</div>
-          <div class="text-[11px] text-slate-500 mt-1"><span id="m-period-tokens">0</span> tok · <span id="m-period-sessions">0</span> sessions in period</div>
+          <div class="text-[11px] text-slate-500 mt-1"><span id="m-period-tokens">0</span> tok · <span id="m-period-sessions">0</span> sessions</div>
         </div>
       </div>
     </section>
 
     <!-- Totals -->
     <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Active agents</div>
-        <div class="metric-value font-display text-3xl font-semibold text-emerald-400" id="m-agents">0</div>
-        <div class="text-xs text-slate-500 mt-1"><span id="m-agents-listed">0</span> listed · <span id="m-procs">0</span> procs</div>
-      </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Total tokens</div>
-        <div class="metric-value font-display text-3xl font-semibold text-white" id="m-total">0</div>
-        <div class="text-xs text-slate-500 mt-1">active sessions</div>
-      </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Input</div>
-        <div class="metric-value font-display text-3xl font-semibold text-sky-400" id="m-input">0</div>
-        <div class="text-xs text-slate-500 mt-1">prompt tokens</div>
-      </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Output</div>
-        <div class="metric-value font-display text-3xl font-semibold text-violet-400" id="m-output">0</div>
-        <div class="text-xs text-slate-500 mt-1">completion tokens</div>
-      </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Cache read</div>
-        <div class="metric-value font-display text-3xl font-semibold text-amber-400" id="m-cached">0</div>
-        <div class="text-xs text-slate-500 mt-1">cache hits</div>
-      </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="section-title mb-1">Reasoning</div>
-        <div class="metric-value font-display text-3xl font-semibold text-rose-400" id="m-reason">0</div>
-        <div class="text-xs text-slate-500 mt-1">thinking tokens</div>
-      </div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Active agents</div><div class="metric-value font-display text-3xl font-semibold text-emerald-400" id="m-agents">0</div><div class="text-xs text-slate-500 mt-1"><span id="m-agents-listed">0</span> listed · <span id="m-procs">0</span> procs</div></div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Total tokens</div><div class="metric-value font-display text-3xl font-semibold text-white" id="m-total">0</div><div class="text-xs text-slate-500 mt-1">active sessions</div></div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Input</div><div class="metric-value font-display text-3xl font-semibold text-sky-400" id="m-input">0</div><div class="text-xs text-slate-500 mt-1">prompt tokens</div></div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Output</div><div class="metric-value font-display text-3xl font-semibold text-violet-400" id="m-output">0</div><div class="text-xs text-slate-500 mt-1">completion</div></div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Cache read</div><div class="metric-value font-display text-3xl font-semibold text-amber-400" id="m-cached">0</div><div class="text-xs text-slate-500 mt-1">cache hits</div></div>
+      <div class="glass rounded-2xl p-4"><div class="section-title mb-1">Reasoning</div><div class="metric-value font-display text-3xl font-semibold text-rose-400" id="m-reason">0</div><div class="text-xs text-slate-500 mt-1">thinking</div></div>
     </section>
 
     <!-- Chart + model breakdown -->
     <section class="grid lg:grid-cols-3 gap-4 mt-4">
       <div class="glass rounded-2xl p-4 lg:col-span-2">
-        <div class="flex items-center justify-between mb-3">
-          <div class="section-title">Cumulative tokens (active agents)</div>
-          <div class="text-xs text-slate-500" id="chart-hint">updates as sessions complete turns</div>
-        </div>
-        <div class="h-52">
-          <canvas id="tokenChart"></canvas>
-        </div>
+        <div class="section-title mb-3">Cumulative tokens (active agents)</div>
+        <div class="h-52"><canvas id="tokenChart"></canvas></div>
       </div>
       <div class="glass rounded-2xl p-4">
         <div class="section-title mb-3">By active model</div>
-        <div id="model-breakdown" class="space-y-3 text-sm">
-          <div class="text-slate-500 text-xs">No data yet</div>
-        </div>
+        <div id="model-breakdown" class="space-y-3 text-sm"><div class="text-slate-500 text-xs">No data yet</div></div>
         <div class="mt-4 pt-3 border-t border-white/5">
-          <div class="section-title mb-2">Context fill (active)</div>
+          <div class="section-title mb-2">Context fill</div>
           <div class="metric-value font-mono text-lg" id="m-context">—</div>
-          <div class="text-xs text-slate-500 mt-1">sum of current context windows</div>
         </div>
       </div>
     </section>
@@ -202,9 +152,7 @@
         <h2 class="font-display text-lg font-semibold">Running agents</h2>
         <span class="text-xs text-slate-500" id="agent-count-label">0 active</span>
       </div>
-      <div id="agents" class="grid md:grid-cols-2 gap-3">
-        <div class="glass rounded-2xl p-6 text-slate-500 text-sm">Waiting for data…</div>
-      </div>
+      <div id="agents" class="grid md:grid-cols-2 gap-3"><div class="glass rounded-2xl p-6 text-slate-500 text-sm">Waiting for data…</div></div>
     </section>
 
     <!-- Table -->
@@ -212,186 +160,155 @@
       <h2 class="font-display text-lg font-semibold mb-3">Token table</h2>
       <div class="glass rounded-2xl overflow-x-auto">
         <table class="tok w-full">
-          <thead>
-            <tr>
-              <th>Provider / Agent</th>
-              <th>Active Model</th>
-              <th>Status</th>
-              <th class="text-right!">Input</th>
-              <th class="text-right!">Output</th>
-              <th class="text-right!">Cached</th>
-              <th class="text-right!">Reason</th>
-              <th class="text-right!">Total</th>
-              <th class="text-right!">Est. $</th>
-              <th class="text-right!">Context</th>
-              <th class="text-right!">Turns</th>
-            </tr>
-          </thead>
-          <tbody id="table-body">
-            <tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr>
-          </tbody>
+          <thead><tr>
+            <th>Provider / Agent</th><th>Active Model</th><th>Status</th>
+            <th class="text-right!">Input</th><th class="text-right!">Output</th><th class="text-right!">Cached</th>
+            <th class="text-right!">Reason</th><th class="text-right!">Total</th><th class="text-right!">Est. $</th>
+            <th class="text-right!">Context</th><th class="text-right!">Turns</th>
+          </tr></thead>
+          <tbody id="table-body"><tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr></tbody>
         </table>
       </div>
     </section>
 
     <!-- Recent -->
     <section class="mt-8">
-      <h2 class="font-display text-lg font-semibold mb-3">Recent sessions <span class="text-slate-500 text-sm font-normal">(24h, not currently listed)</span></h2>
+      <h2 class="font-display text-lg font-semibold mb-3">Recent sessions <span class="text-slate-500 text-sm font-normal">(24h)</span></h2>
       <div id="recent" class="glass rounded-2xl overflow-x-auto">
         <table class="tok w-full">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Active Model</th>
-              <th class="text-right!">Total tokens</th>
-              <th class="text-right!">In / Out</th>
-              <th class="text-right!">Turns</th>
-              <th>Last active</th>
-            </tr>
-          </thead>
-          <tbody id="recent-body">
-            <tr><td colspan="6" class="text-slate-500 text-sm">None</td></tr>
-          </tbody>
+          <thead><tr><th>Title</th><th>Active Model</th><th class="text-right!">Total</th><th class="text-right!">In / Out</th><th class="text-right!">Turns</th><th>Last active</th></tr></thead>
+          <tbody id="recent-body"><tr><td colspan="6" class="text-slate-500 text-sm">None</td></tr></tbody>
         </table>
       </div>
     </section>
 
     <footer class="mt-10 text-xs text-slate-600 space-y-1 border-t border-white/5 pt-4">
-      <p>Data sources: <code class="text-slate-500">~/.grok/...</code> + configurable provider log paths. Each agent reports its <strong>active model</strong> for accurate pricing.</p>
+      <p>Use <strong>Providers & Paths</strong> to locate Cursor, Claude, OpenAI and set their folders. Each agent reports its active model for accurate pricing.</p>
       <p id="notes"></p>
-      <p class="text-slate-700">100% local · no network egress from this dashboard server</p>
+      <p class="text-slate-700">100% local · no network egress</p>
     </footer>
   </div>
 
   <script>
     const POLL_MS = 2000;
-    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
-      ? ''
-      : 'http://127.0.0.1:8765';
+    const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') ? '' : 'http://127.0.0.1:8765';
     let chart = null;
-    let lastError = null;
+    let providersState = [];
 
-    function fmt(n) {
-      n = Number(n) || 0;
-      if (n >= 1_000_000) return (n / 1e6).toFixed(2) + 'M';
-      if (n >= 10_000) return (n / 1e3).toFixed(1) + 'k';
-      if (n >= 1_000) return (n / 1e3).toFixed(2) + 'k';
-      return String(Math.round(n));
+    function fmt(n) { n = Number(n)||0; if(n>=1e6) return (n/1e6).toFixed(2)+'M'; if(n>=1e4) return (n/1e3).toFixed(1)+'k'; if(n>=1e3) return (n/1e3).toFixed(2)+'k'; return String(Math.round(n)); }
+    function fmtFull(n) { return (Number(n)||0).toLocaleString(); }
+    function fmtUsd(n) { const v=Number(n)||0; if(Math.abs(v)>=100) return '$'+v.toFixed(0); if(Math.abs(v)>=1) return '$'+v.toFixed(2); if(Math.abs(v)>=0.01) return '$'+v.toFixed(3); return '$'+v.toFixed(4); }
+    function fmtDuration(sec) { sec=Number(sec)||0; if(sec<60) return sec+'s'; if(sec<3600) return Math.floor(sec/60)+'m '+(sec%60)+'s'; return Math.floor(sec/3600)+'h '+Math.floor((sec%3600)/60)+'m'; }
+    function fmtBytes(b) { b=Number(b)||0; if(b>=1e9) return (b/1e9).toFixed(1)+' GB'; if(b>=1e6) return (b/1e6).toFixed(0)+' MB'; if(b>=1e3) return (b/1e3).toFixed(0)+' KB'; return b+' B'; }
+    function relTime(iso) { if(!iso) return '—'; const t=Date.parse(iso); if(Number.isNaN(t)) return iso; const s=Math.max(0,Math.floor((Date.now()-t)/1000)); if(s<5) return 'just now'; if(s<60) return s+'s ago'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+    function ctxClass(pct) { if(pct>=80) return 'ctx-hot'; if(pct>=55) return 'ctx-warn'; return 'ctx-ok'; }
+    function esc(s) { return String(s??'').replace(/[&<>"']/g, c => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c])); }
+
+    function toggleProvidersMenu() {
+      const el = document.getElementById('providers-menu');
+      el.classList.toggle('hidden');
+      if (!el.classList.contains('hidden')) loadProvidersEditor();
     }
-    function fmtFull(n) {
-      return (Number(n) || 0).toLocaleString();
+
+    async function loadProvidersEditor() {
+      const host = document.getElementById('providers-editor');
+      try {
+        const r = await fetch(API_BASE + '/api/config');
+        const data = await r.json();
+        providersState = data.providers || [];
+        renderProvidersEditor();
+      } catch (e) {
+        host.innerHTML = `<div class="text-rose-400 text-sm">Failed to load config: ${esc(e.message)}</div>`;
+      }
     }
-    function fmtUsd(n, digits) {
-      const d = digits == null ? 2 : digits;
-      const v = Number(n) || 0;
-      if (Math.abs(v) >= 100) return '$' + v.toFixed(0);
-      if (Math.abs(v) >= 10) return '$' + v.toFixed(2);
-      if (Math.abs(v) >= 1) return '$' + v.toFixed(2);
-      if (Math.abs(v) >= 0.01) return '$' + v.toFixed(3);
-      return '$' + v.toFixed(4);
+
+    function renderProvidersEditor() {
+      const host = document.getElementById('providers-editor');
+      if (!providersState.length) {
+        host.innerHTML = '<div class="text-slate-500 text-sm">No providers in config. Run Scan first.</div>';
+        return;
+      }
+      host.innerHTML = providersState.map((p, i) => {
+        const pathVal = p.home || p.logsPath || '';
+        const pathKey = p.type === 'grok' ? 'home' : 'logsPath';
+        return `<div class="glass rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="flex items-center gap-2 min-w-[140px]">
+            <input type="checkbox" id="en-${i}" ${p.enabled ? 'checked' : ''} class="rounded border-slate-600" onchange="providersState[${i}].enabled=this.checked">
+            <label for="en-${i}" class="font-medium text-sm">${esc(p.name || p.id)}</label>
+          </div>
+          <div class="flex-1">
+            <input type="text" class="path-input" value="${esc(pathVal)}" placeholder="Path to agent data folder"
+              onchange="providersState[${i}].${pathKey}=this.value; providersState[${i}].home=this.value; providersState[${i}].logsPath=this.value">
+          </div>
+          <div class="text-[10px] text-slate-500 font-mono">${esc(p.type || '')}</div>
+        </div>`;
+      }).join('');
     }
-    function fmtDuration(sec) {
-      sec = Number(sec) || 0;
-      if (sec < 60) return sec + 's';
-      if (sec < 3600) return Math.floor(sec / 60) + 'm ' + (sec % 60) + 's';
-      const h = Math.floor(sec / 3600);
-      const m = Math.floor((sec % 3600) / 60);
-      return h + 'h ' + m + 'm';
+
+    async function runDiscover() {
+      const status = document.getElementById('discover-status');
+      status.textContent = 'Scanning common locations…';
+      try {
+        const r = await fetch(API_BASE + '/api/discover');
+        const data = await r.json();
+        const found = data.agents || [];
+        // Merge discoveries into providersState
+        for (const f of found) {
+          let existing = providersState.find(p => p.id === f.id);
+          if (!existing) {
+            existing = { id: f.id, name: f.name, type: f.type, enabled: f.found, home: '', logsPath: '' };
+            providersState.push(existing);
+          }
+          if (f.found && f.suggestedPath) {
+            existing.home = f.suggestedPath;
+            existing.logsPath = f.suggestedPath;
+            existing.enabled = true;
+          }
+        }
+        renderProvidersEditor();
+        status.textContent = `Scan complete. Found ${found.filter(a => a.found).length} of ${found.length} common agents. Review paths and click Save.`;
+      } catch (e) {
+        status.textContent = 'Scan failed: ' + e.message;
+      }
     }
-    function fmtBytes(b) {
-      b = Number(b) || 0;
-      if (b >= 1e9) return (b / 1e9).toFixed(1) + ' GB';
-      if (b >= 1e6) return (b / 1e6).toFixed(0) + ' MB';
-      if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
-      return b + ' B';
-    }
-    function relTime(iso) {
-      if (!iso) return '—';
-      const t = Date.parse(iso);
-      if (Number.isNaN(t)) return iso;
-      const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
-      if (s < 5) return 'just now';
-      if (s < 60) return s + 's ago';
-      if (s < 3600) return Math.floor(s / 60) + 'm ago';
-      if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-      return Math.floor(s / 86400) + 'd ago';
-    }
-    function ctxClass(pct) {
-      if (pct >= 80) return 'ctx-hot';
-      if (pct >= 55) return 'ctx-warn';
-      return 'ctx-ok';
-    }
-    function esc(s) {
-      return String(s ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
-      })[c]);
+
+    async function saveProviders() {
+      const status = document.getElementById('discover-status');
+      status.textContent = 'Saving…';
+      try {
+        const r = await fetch(API_BASE + '/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ providers: providersState })
+        });
+        const data = await r.json();
+        if (data.ok) {
+          status.textContent = 'Saved. Restart or wait a few seconds for the next poll to pick up changes.';
+          providersState = data.providers || providersState;
+          renderProvidersEditor();
+          refreshNow();
+        } else {
+          status.textContent = 'Save failed: ' + (data.error || 'unknown');
+        }
+      } catch (e) {
+        status.textContent = 'Save error: ' + e.message;
+      }
     }
 
     function initChart() {
       const ctx = document.getElementById('tokenChart').getContext('2d');
       chart = new Chart(ctx, {
         type: 'line',
-        data: {
-          labels: [],
-          datasets: [
-            {
-              label: 'Total',
-              data: [],
-              borderColor: '#a78bfa',
-              backgroundColor: 'rgba(167,139,250,0.08)',
-              fill: true,
-              tension: 0.3,
-              pointRadius: 0,
-              borderWidth: 2
-            },
-            {
-              label: 'Input',
-              data: [],
-              borderColor: '#38bdf8',
-              tension: 0.3,
-              pointRadius: 0,
-              borderWidth: 1.5
-            },
-            {
-              label: 'Output',
-              data: [],
-              borderColor: '#c084fc',
-              tension: 0.3,
-              pointRadius: 0,
-              borderWidth: 1.5
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 250 },
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: {
-              labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } }
-            },
-            tooltip: {
-              callbacks: {
-                label: (c) => ` ${c.dataset.label}: ${fmtFull(c.raw)}`
-              }
-            }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 10 } },
-              grid: { color: 'rgba(255,255,255,0.04)' }
-            },
-            y: {
-              ticks: {
-                color: '#64748b',
-                font: { size: 10 },
-                callback: (v) => fmt(v)
-              },
-              grid: { color: 'rgba(255,255,255,0.04)' }
-            }
-          }
-        }
+        data: { labels: [], datasets: [
+          { label: 'Total', data: [], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+          { label: 'Input', data: [], borderColor: '#38bdf8', tension: 0.3, pointRadius: 0, borderWidth: 1.5 },
+          { label: 'Output', data: [], borderColor: '#c084fc', tension: 0.3, pointRadius: 0, borderWidth: 1.5 }
+        ]},
+        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmtFull(c.raw)}` } } },
+          scales: { x: { ticks: { color: '#64748b', maxTicksLimit: 8, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                    y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: 'rgba(255,255,255,0.04)' } } } }
       });
     }
 
@@ -399,74 +316,33 @@
       const u = a.usage || {};
       const alive = a.alive;
       const pct = a.contextWindowUsage || 0;
-      const tools = (a.toolsUsed || []).slice(0, 8).map(t =>
-        `<span class="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-slate-400 font-mono">${esc(t)}</span>`
-      ).join(' ');
+      const tools = (a.toolsUsed || []).slice(0, 8).map(t => `<span class="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-slate-400 font-mono">${esc(t)}</span>`).join(' ');
       const last = u.lastTurn;
-      const lastLine = last
-        ? `Last turn: ${fmt(last.totalTokens)} tok · ${last.apiDurationMs || 0}ms API · ${last.modelCalls || 0} calls`
-        : 'No completed turns with usage yet';
-      const provider = a.provider || 'grok';
-
-      return `
-        <article class="agent-card glass rounded-2xl p-4 ${alive ? '' : 'dead'}">
-          <div class="flex items-start justify-between gap-3 mb-3">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2 mb-0.5">
-                <span class="w-2 h-2 rounded-full ${alive ? 'bg-emerald-400 status-dot' : 'bg-slate-600'}"></span>
-                <h3 class="font-medium truncate" title="${esc(a.title)}">${esc(a.title)}</h3>
-              </div>
-              <div class="text-xs text-slate-500 font-mono truncate mb-1">
-                ${esc(provider)} · ${esc(a.shortId)} · pid ${a.pid || '—'}
-              </div>
-              <div class="model-badge" title="Active model used for pricing">
-                ${esc(a.model || 'unknown')}
-              </div>
-            </div>
-            <div class="text-right shrink-0">
-              <div class="metric-value font-display text-2xl font-semibold">${fmt(u.totalTokens)}</div>
-              <div class="text-[10px] text-slate-500 uppercase tracking-wide">tokens · <span class="text-emerald-400/90">${fmtUsd(u.costUsd)}</span> est.</div>
-            </div>
+      const lastLine = last ? `Last turn: ${fmt(last.totalTokens)} tok · ${last.apiDurationMs||0}ms` : 'No completed turns yet';
+      return `<article class="agent-card glass rounded-2xl p-4 ${alive?'':'dead'}">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 mb-0.5"><span class="w-2 h-2 rounded-full ${alive?'bg-emerald-400 status-dot':'bg-slate-600'}"></span><h3 class="font-medium truncate">${esc(a.title)}</h3></div>
+            <div class="text-xs text-slate-500 font-mono truncate mb-1">${esc(a.provider||'grok')} · ${esc(a.shortId)}</div>
+            <div class="model-badge">${esc(a.model||'unknown')}</div>
           </div>
-
-          <div class="grid grid-cols-4 gap-2 mb-3 text-center">
-            <div class="rounded-xl bg-white/[0.03] p-2">
-              <div class="text-[10px] text-slate-500">IN</div>
-              <div class="metric-value font-mono text-sm text-sky-400">${fmt(u.inputTokens)}</div>
-            </div>
-            <div class="rounded-xl bg-white/[0.03] p-2">
-              <div class="text-[10px] text-slate-500">OUT</div>
-              <div class="metric-value font-mono text-sm text-violet-400">${fmt(u.outputTokens)}</div>
-            </div>
-            <div class="rounded-xl bg-white/[0.03] p-2">
-              <div class="text-[10px] text-slate-500">CACHE</div>
-              <div class="metric-value font-mono text-sm text-amber-400">${fmt(u.cachedReadTokens)}</div>
-            </div>
-            <div class="rounded-xl bg-white/[0.03] p-2">
-              <div class="text-[10px] text-slate-500">REASON</div>
-              <div class="metric-value font-mono text-sm text-rose-400">${fmt(u.reasoningTokens)}</div>
-            </div>
-          </div>
-
-          <div class="mb-2">
-            <div class="flex justify-between text-xs mb-1">
-              <span class="text-slate-500">Context window</span>
-              <span class="font-mono text-slate-300">${fmt(a.contextTokensUsed)} / ${fmt(a.contextWindowTokens)} · ${pct}%</span>
-            </div>
-            <div class="bar-track"><div class="bar-fill ${ctxClass(pct)}" style="width:${Math.min(100, pct)}%"></div></div>
-          </div>
-
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-3">
-            <span>Turns <b class="text-slate-300 font-medium">${a.turnCount || 0}</b></span>
-            <span>Tools <b class="text-slate-300 font-medium">${a.toolCallCount || 0}</b></span>
-            <span>Calls <b class="text-slate-300 font-medium">${u.modelCalls || 0}</b></span>
-            <span>Duration <b class="text-slate-300 font-medium">${fmtDuration(a.sessionDurationSeconds)}</b></span>
-            ${a.processRssBytes ? `<span>RSS <b class="text-slate-300 font-medium">${fmtBytes(a.processRssBytes)}</b></span>` : ''}
-          </div>
-          ${tools ? `<div class="flex flex-wrap gap-1 mt-2">${tools}</div>` : ''}
-          <div class="text-[11px] text-slate-600 mt-2 truncate" title="${esc(a.cwd)}">${esc(a.cwd || '')}</div>
-          <div class="text-[11px] text-slate-600 mt-0.5">${esc(lastLine)} · active ${relTime(a.lastActiveAt || a.openedAt)}</div>
-        </article>`;
+          <div class="text-right shrink-0"><div class="metric-value font-display text-2xl font-semibold">${fmt(u.totalTokens)}</div><div class="text-[10px] text-slate-500">tokens · <span class="text-emerald-400/90">${fmtUsd(u.costUsd)}</span></div></div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 mb-3 text-center">
+          <div class="rounded-xl bg-white/[0.03] p-2"><div class="text-[10px] text-slate-500">IN</div><div class="metric-value font-mono text-sm text-sky-400">${fmt(u.inputTokens)}</div></div>
+          <div class="rounded-xl bg-white/[0.03] p-2"><div class="text-[10px] text-slate-500">OUT</div><div class="metric-value font-mono text-sm text-violet-400">${fmt(u.outputTokens)}</div></div>
+          <div class="rounded-xl bg-white/[0.03] p-2"><div class="text-[10px] text-slate-500">CACHE</div><div class="metric-value font-mono text-sm text-amber-400">${fmt(u.cachedReadTokens)}</div></div>
+          <div class="rounded-xl bg-white/[0.03] p-2"><div class="text-[10px] text-slate-500">REASON</div><div class="metric-value font-mono text-sm text-rose-400">${fmt(u.reasoningTokens)}</div></div>
+        </div>
+        <div class="mb-2"><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Context</span><span class="font-mono text-slate-300">${fmt(a.contextTokensUsed)} / ${fmt(a.contextWindowTokens)} · ${pct}%</span></div><div class="bar-track"><div class="bar-fill ${ctxClass(pct)}" style="width:${Math.min(100,pct)}%"></div></div></div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-3">
+          <span>Turns <b class="text-slate-300">${a.turnCount||0}</b></span>
+          <span>Tools <b class="text-slate-300">${a.toolCallCount||0}</b></span>
+          ${a.processRssBytes ? `<span>RSS <b class="text-slate-300">${fmtBytes(a.processRssBytes)}</b></span>` : ''}
+        </div>
+        ${tools ? `<div class="flex flex-wrap gap-1 mt-2">${tools}</div>` : ''}
+        <div class="text-[11px] text-slate-600 mt-2">${esc(lastLine)} · ${relTime(a.lastActiveAt||a.openedAt)}</div>
+      </article>`;
     }
 
     function render(state) {
@@ -475,44 +351,25 @@
       const period = state.period || {};
       const pricing = state.pricing || {};
 
-      // Providers cards
+      // Provider cards
       const provHost = document.getElementById('providers-section');
       const providers = state.providers || [];
-      if (providers.length) {
-        provHost.innerHTML = providers.map(p => {
-          const models = Object.entries(p.activeModels || {}).map(([m, c]) =>
-            `<span class="model-badge">${esc(m)} ×${c}</span>`
-          ).join(' ');
-          return `<div class="glass rounded-xl p-3">
-            <div class="flex items-center justify-between mb-1">
-              <div class="font-medium text-sm">${esc(p.name || p.id)}</div>
-              <div class="text-xs text-emerald-400">${p.aliveCount || 0} alive</div>
-            </div>
-            <div class="text-xs text-slate-500 mb-2">${p.agentCount || 0} agents</div>
-            <div class="flex flex-wrap gap-1">${models || '<span class="text-slate-600 text-xs">no active models</span>'}</div>
-          </div>`;
-        }).join('');
-      } else {
-        provHost.innerHTML = '';
-      }
+      provHost.innerHTML = providers.length ? providers.map(p => {
+        const models = Object.entries(p.activeModels||{}).map(([m,c]) => `<span class="model-badge">${esc(m)} ×${c}</span>`).join(' ');
+        return `<div class="glass rounded-xl p-3"><div class="flex items-center justify-between mb-1"><div class="font-medium text-sm">${esc(p.name||p.id)}</div><div class="text-xs text-emerald-400">${p.aliveCount||0} alive</div></div><div class="text-xs text-slate-500 mb-2">${p.agentCount||0} agents</div><div class="flex flex-wrap gap-1">${models||'<span class="text-slate-600 text-xs">no models</span>'}</div></div>`;
+      }).join('') : '';
 
       document.getElementById('m-agents').textContent = t.agentsAlive ?? 0;
       document.getElementById('m-agents-listed').textContent = t.agentsListed ?? 0;
-      document.getElementById('m-procs').textContent = (state.processes || []).length;
+      document.getElementById('m-procs').textContent = (state.processes||[]).length;
       document.getElementById('m-total').textContent = fmt(t.totalTokens);
-      document.getElementById('m-total').title = fmtFull(t.totalTokens);
       document.getElementById('m-input').textContent = fmt(t.inputTokens);
-      document.getElementById('m-input').title = fmtFull(t.inputTokens);
       document.getElementById('m-output').textContent = fmt(t.outputTokens);
-      document.getElementById('m-output').title = fmtFull(t.outputTokens);
       document.getElementById('m-cached').textContent = fmt(t.cachedReadTokens);
-      document.getElementById('m-cached').title = fmtFull(t.cachedReadTokens);
       document.getElementById('m-reason').textContent = fmt(t.reasoningTokens);
-      document.getElementById('m-reason').title = fmtFull(t.reasoningTokens);
       document.getElementById('m-context').textContent = fmt(t.contextTokensUsed);
       document.getElementById('updated-at').textContent = relTime(state.generatedAt);
 
-      // Plan / budget / rate limit
       const plan = state.plan || {};
       const rl = state.rateLimit || {};
       const spent = Number(budget.spentUsd != null ? budget.spentUsd : period.costUsd) || 0;
@@ -520,194 +377,100 @@
       const pct = Number(budget.usedPercent) || 0;
       document.getElementById('plan-name').textContent = plan.name || 'Plan';
       document.getElementById('m-spent').textContent = fmtUsd(spent);
-      document.getElementById('m-spent').title = '$' + spent.toFixed(6) + ' API-equivalent';
       document.getElementById('m-budget-cap').textContent = cap > 0 ? fmtUsd(cap) : 'not set';
       document.getElementById('budget-period').textContent = budget.period || period.name || '—';
       document.getElementById('m-active-cost').textContent = fmtUsd(t.costUsd || 0);
-      document.getElementById('m-active-cost').title = '$' + Number(t.costUsd || 0).toFixed(6);
       document.getElementById('m-period-tokens').textContent = fmt(period.totalTokens || 0);
       document.getElementById('m-period-sessions').textContent = period.sessionCount || 0;
-      document.getElementById('m-remaining').textContent =
-        budget.remainingUsd != null ? fmtUsd(budget.remainingUsd) : '—';
-      const isSub = (plan.billing || '') === 'subscription' || pricing.isApiEquivalent;
-      document.getElementById('budget-pct').textContent =
-        budget.status === 'unlimited' ? 'no comparison budget set' :
-        (isSub
-          ? (pct.toFixed(1) + '% of monthly plan fee as API value')
-          : (pct.toFixed(1) + '% of budget'));
+      document.getElementById('m-remaining').textContent = budget.remainingUsd != null ? fmtUsd(budget.remainingUsd) : '—';
+      document.getElementById('budget-pct').textContent = budget.status === 'unlimited' ? 'no cap' : pct.toFixed(1) + '%';
 
       const bar = document.getElementById('budget-bar');
       const st = document.getElementById('budget-status');
       const status = budget.status || 'ok';
-      const width = budget.status === 'unlimited' ? Math.min(100, pct || 0) : Math.min(100, pct);
-      bar.style.width = (cap > 0 ? width : 0) + '%';
+      bar.style.width = (cap > 0 ? Math.min(100, pct) : 0) + '%';
       bar.className = 'bar-fill ' + (status === 'over' ? 'ctx-hot' : status === 'warn' ? 'ctx-warn' : 'ctx-ok');
-      st.textContent = status === 'over' ? (isSub ? 'VALUE > PLAN FEE' : 'OVER BUDGET')
-        : status === 'warn' ? 'NEAR CAP' : status === 'unlimited' ? 'NO $ CAP' : 'OK';
-      st.className = 'inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ' + (
-        status === 'over' ? 'border-rose-500/30 bg-rose-500/10 text-rose-400' :
-        status === 'warn' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
-        status === 'unlimited' ? 'border-slate-500/30 bg-slate-500/10 text-slate-400' :
-        'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-      );
+      st.textContent = status === 'over' ? 'OVER' : status === 'warn' ? 'NEAR' : status === 'unlimited' ? 'NO CAP' : 'OK';
+      st.className = 'inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ' + (status==='over'?'border-rose-500/30 bg-rose-500/10 text-rose-400':status==='warn'?'border-amber-500/30 bg-amber-500/10 text-amber-400':status==='unlimited'?'border-slate-500/30 bg-slate-500/10 text-slate-400':'border-emerald-500/30 bg-emerald-500/10 text-emerald-400');
 
-      // Rate limit proxy
-      const maxP = Number(rl.maxPrompts) || 0;
-      const usedP = Number(rl.promptsUsed) || 0;
-      document.getElementById('m-prompts').innerHTML =
-        usedP + '<span class="text-lg text-slate-500"> / ' + (maxP || '—') + '</span>';
-      document.getElementById('rl-window').textContent = (rl.windowHours || 2) + 'h';
-      document.getElementById('rl-remaining').textContent =
-        rl.remaining != null ? (rl.remaining + ' left') : '—';
-      document.getElementById('rl-status').textContent =
-        rl.status === 'over' ? 'at/over approx cap' :
-        rl.status === 'warn' ? 'near approx cap' :
-        rl.status === 'ok' ? 'under approx cap' : 'rate proxy off';
+      const maxP = Number(rl.maxPrompts)||0, usedP = Number(rl.promptsUsed)||0;
+      document.getElementById('m-prompts').innerHTML = usedP + '<span class="text-lg text-slate-500"> / '+(maxP||'—')+'</span>';
+      document.getElementById('rl-window').textContent = (rl.windowHours||2)+'h';
+      document.getElementById('rl-remaining').textContent = rl.remaining != null ? rl.remaining+' left' : '—';
+      document.getElementById('rl-status').textContent = rl.status==='over'?'over':rl.status==='warn'?'near':rl.status==='ok'?'ok':'off';
       const rlBar = document.getElementById('rl-bar');
-      const rlPct = maxP > 0 ? Math.min(100, 100 * usedP / maxP) : 0;
-      rlBar.style.width = rlPct + '%';
-      rlBar.className = 'bar-fill ' + (rl.status === 'over' ? 'ctx-hot' : rl.status === 'warn' ? 'ctx-warn' : 'ctx-ok');
+      rlBar.style.width = (maxP>0 ? Math.min(100,100*usedP/maxP) : 0) + '%';
+      rlBar.className = 'bar-fill ' + (rl.status==='over'?'ctx-hot':rl.status==='warn'?'ctx-warn':'ctx-ok');
 
-      const rates = (pricing.rates) || {};
-      document.getElementById('budget-rates').textContent =
-        `active model rates · default ${pricing.defaultModel || 'grok-4.5'}`;
-      document.getElementById('pricing-note').textContent = pricing.note ||
-        'Pricing uses the active model reported by each agent.';
+      document.getElementById('budget-rates').textContent = 'active model rates';
+      document.getElementById('pricing-note').textContent = pricing.note || 'Pricing uses the active model.';
 
-      // model breakdown
       const mb = document.getElementById('model-breakdown');
       const models = t.byModel || {};
       const keys = Object.keys(models);
-      if (!keys.length) {
-        mb.innerHTML = '<div class="text-slate-500 text-xs">No model usage yet</div>';
-      } else {
-        mb.innerHTML = keys.map(k => {
-          const m = models[k];
-          return `<div>
-            <div class="flex justify-between gap-2">
-              <span class="font-mono text-slate-300 truncate">${esc(k)}</span>
-              <span class="metric-value font-mono text-violet-300">${fmt(m.totalTokens)} · ${fmtUsd(m.costUsd)}</span>
-            </div>
-            <div class="text-[11px] text-slate-500 mt-0.5">
-              in ${fmt(m.inputTokens)} · out ${fmt(m.outputTokens)} · cache ${fmt(m.cachedReadTokens)} · ${m.modelCalls || 0} calls
-            </div>
-          </div>`;
-        }).join('');
-      }
+      mb.innerHTML = keys.length ? keys.map(k => {
+        const m = models[k];
+        return `<div><div class="flex justify-between gap-2"><span class="font-mono text-slate-300 truncate">${esc(k)}</span><span class="metric-value font-mono text-violet-300">${fmt(m.totalTokens)} · ${fmtUsd(m.costUsd)}</span></div><div class="text-[11px] text-slate-500 mt-0.5">in ${fmt(m.inputTokens)} · out ${fmt(m.outputTokens)}</div></div>`;
+      }).join('') : '<div class="text-slate-500 text-xs">No model usage yet</div>';
 
-      // agents
       const agents = state.agents || [];
-      document.getElementById('agent-count-label').textContent =
-        `${agents.filter(a => a.alive).length} alive · ${agents.length} listed`;
+      document.getElementById('agent-count-label').textContent = `${agents.filter(a=>a.alive).length} alive · ${agents.length} listed`;
       const host = document.getElementById('agents');
-      if (!agents.length) {
-        host.innerHTML = `<div class="glass rounded-2xl p-6 text-slate-500 text-sm">
-          No agents found. Start a Grok session or enable additional providers in config.json.
-        </div>`;
-      } else {
-        host.innerHTML = agents.map(renderAgentCard).join('');
-      }
+      host.innerHTML = agents.length ? agents.map(renderAgentCard).join('') : `<div class="glass rounded-2xl p-6 text-slate-500 text-sm">No agents. Use <b>Providers & Paths</b> to enable more sources, or start a Grok session.</div>`;
 
-      // table
       const tbody = document.getElementById('table-body');
-      if (!agents.length) {
-        tbody.innerHTML = '<tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr>';
-      } else {
-        tbody.innerHTML = agents.map(a => {
-          const u = a.usage || {};
-          return `<tr>
-            <td>
-              <div class="font-medium max-w-[220px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
-              <div class="text-[11px] text-slate-500 font-mono">${esc(a.provider || 'grok')} · ${esc(a.shortId)}</div>
-            </td>
-            <td><span class="model-badge">${esc(a.model || 'unknown')}</span></td>
-            <td>${a.alive
-              ? '<span class="text-emerald-400 text-xs font-medium">alive</span>'
-              : '<span class="text-slate-500 text-xs">stale pid</span>'}</td>
-            <td class="text-right font-mono text-sky-400/90">${fmt(u.inputTokens)}</td>
-            <td class="text-right font-mono text-violet-400/90">${fmt(u.outputTokens)}</td>
-            <td class="text-right font-mono text-amber-400/90">${fmt(u.cachedReadTokens)}</td>
-            <td class="text-right font-mono text-rose-400/90">${fmt(u.reasoningTokens)}</td>
-            <td class="text-right font-mono font-medium">${fmt(u.totalTokens)}</td>
-            <td class="text-right font-mono text-emerald-400/90">${fmtUsd(u.costUsd)}</td>
-            <td class="text-right font-mono text-xs">${a.contextWindowUsage || 0}%</td>
-            <td class="text-right font-mono">${a.turnCount || 0}</td>
-          </tr>`;
-        }).join('');
-      }
+      tbody.innerHTML = agents.length ? agents.map(a => {
+        const u = a.usage || {};
+        return `<tr><td><div class="font-medium max-w-[220px] truncate">${esc(a.title)}</div><div class="text-[11px] text-slate-500 font-mono">${esc(a.provider||'grok')} · ${esc(a.shortId)}</div></td>
+          <td><span class="model-badge">${esc(a.model||'unknown')}</span></td>
+          <td>${a.alive?'<span class="text-emerald-400 text-xs">alive</span>':'<span class="text-slate-500 text-xs">stale</span>'}</td>
+          <td class="text-right font-mono text-sky-400/90">${fmt(u.inputTokens)}</td>
+          <td class="text-right font-mono text-violet-400/90">${fmt(u.outputTokens)}</td>
+          <td class="text-right font-mono text-amber-400/90">${fmt(u.cachedReadTokens)}</td>
+          <td class="text-right font-mono text-rose-400/90">${fmt(u.reasoningTokens)}</td>
+          <td class="text-right font-mono font-medium">${fmt(u.totalTokens)}</td>
+          <td class="text-right font-mono text-emerald-400/90">${fmtUsd(u.costUsd)}</td>
+          <td class="text-right font-mono text-xs">${a.contextWindowUsage||0}%</td>
+          <td class="text-right font-mono">${a.turnCount||0}</td></tr>`;
+      }).join('') : '<tr><td colspan="11" class="text-slate-500 text-sm">No agents</td></tr>';
 
-      // recent
       const recent = state.recent || [];
-      const rb = document.getElementById('recent-body');
-      if (!recent.length) {
-        rb.innerHTML = '<tr><td colspan="6" class="text-slate-500 text-sm">No other sessions in the last 24h</td></tr>';
-      } else {
-        rb.innerHTML = recent.map(a => {
-          const u = a.usage || {};
-          return `<tr>
-            <td>
-              <div class="max-w-[280px] truncate" title="${esc(a.title)}">${esc(a.title)}</div>
-              <div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)}</div>
-            </td>
-            <td><span class="model-badge">${esc(a.model || 'unknown')}</span></td>
-            <td class="text-right font-mono">${fmt(u.totalTokens)} · <span class="text-emerald-400/80">${fmtUsd(u.costUsd)}</span></td>
-            <td class="text-right font-mono text-xs text-slate-400">${fmt(u.inputTokens)} / ${fmt(u.outputTokens)}</td>
-            <td class="text-right font-mono">${a.turnCount || 0}</td>
-            <td class="text-xs text-slate-500">${relTime(a.lastActiveAt || a.updatedAt)}</td>
-          </tr>`;
-        }).join('');
-      }
+      document.getElementById('recent-body').innerHTML = recent.length ? recent.map(a => {
+        const u = a.usage || {};
+        return `<tr><td><div class="max-w-[280px] truncate">${esc(a.title)}</div><div class="text-[11px] text-slate-500 font-mono">${esc(a.shortId)}</div></td>
+          <td><span class="model-badge">${esc(a.model||'unknown')}</span></td>
+          <td class="text-right font-mono">${fmt(u.totalTokens)} · <span class="text-emerald-400/80">${fmtUsd(u.costUsd)}</span></td>
+          <td class="text-right font-mono text-xs text-slate-400">${fmt(u.inputTokens)} / ${fmt(u.outputTokens)}</td>
+          <td class="text-right font-mono">${a.turnCount||0}</td>
+          <td class="text-xs text-slate-500">${relTime(a.lastActiveAt||a.updatedAt)}</td></tr>`;
+      }).join('') : '<tr><td colspan="6" class="text-slate-500 text-sm">None</td></tr>';
 
-      // chart
       const hist = state.history || [];
       if (chart && hist.length) {
-        chart.data.labels = hist.map(h => {
-          const d = new Date((h.t || 0) * 1000);
-          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        });
-        chart.data.datasets[0].data = hist.map(h => h.totalTokens || 0);
-        chart.data.datasets[1].data = hist.map(h => h.inputTokens || 0);
-        chart.data.datasets[2].data = hist.map(h => h.outputTokens || 0);
+        chart.data.labels = hist.map(h => new Date((h.t||0)*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+        chart.data.datasets[0].data = hist.map(h => h.totalTokens||0);
+        chart.data.datasets[1].data = hist.map(h => h.inputTokens||0);
+        chart.data.datasets[2].data = hist.map(h => h.outputTokens||0);
         chart.update('none');
       }
-
-      if (state.notes) {
-        document.getElementById('notes').textContent = state.notes.join(' ');
-      }
-
-      document.getElementById('live-badge').className =
-        'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
-      document.getElementById('live-badge').innerHTML =
-        '<div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div>LIVE';
+      if (state.notes) document.getElementById('notes').textContent = state.notes.join(' ');
+      document.getElementById('live-badge').className = 'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5';
+      document.getElementById('live-badge').innerHTML = '<div class="w-1.5 h-1.5 bg-emerald-400 rounded-full status-dot"></div> LIVE';
     }
 
     async function poll() {
       try {
         const r = await fetch(API_BASE + '/api/state?_=' + Date.now(), { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        const state = await r.json();
-        lastError = null;
-        render(state);
+        render(await r.json());
       } catch (e) {
-        lastError = e;
-        document.getElementById('live-badge').className =
-          'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5';
-        document.getElementById('live-badge').innerHTML =
-          '<div class="w-1.5 h-1.5 bg-rose-400 rounded-full"></div>OFFLINE';
+        document.getElementById('live-badge').className = 'ml-2 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1.5';
+        document.getElementById('live-badge').innerHTML = '<div class="w-1.5 h-1.5 bg-rose-400 rounded-full"></div> OFFLINE';
         document.getElementById('updated-at').textContent = 'error';
-        const host = document.getElementById('agents');
-        if (host) {
-          host.innerHTML = `<div class="glass rounded-2xl p-6 text-sm space-y-2">
-            <div class="text-rose-400 font-medium">Cannot reach the GrokTokens server</div>
-            <div class="text-slate-400">Nothing listening on <code class="text-slate-300">http://127.0.0.1:8765</code>.</div>
-            <div class="text-slate-500 text-xs">Start with Start-GrokTokens.bat / .vbs then hard-refresh (Ctrl+F5).</div>
-          </div>`;
-        }
       }
     }
 
     function refreshNow() { poll(); }
-
     initChart();
     poll();
     setInterval(poll, POLL_MS);
