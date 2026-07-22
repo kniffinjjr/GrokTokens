@@ -21,9 +21,43 @@
     "maxPrompts": 100,
     "_comment": "Optional prompt-cap proxy using active session turn counts. Enable and tune for subscription plans."
   },
+  "providers": [
+    {
+      "id": "grok",
+      "name": "Grok / Grok Build",
+      "type": "grok",
+      "enabled": true,
+      "home": "~/.grok",
+      "notes": "Reads local Grok session files under ~/.grok (or $GROK_HOME). Tracks active model from summary.json / signals.json."
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "type": "cursor",
+      "enabled": false,
+      "logsPath": "%APPDATA%/Cursor/User/globalStorage",
+      "notes": "Parses Cursor logs for Claude/GPT sessions. Tracks active model from request payloads. Enable and adjust path for your OS."
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic / Claude",
+      "type": "anthropic",
+      "enabled": false,
+      "logsPath": "%APPDATA%/Claude",
+      "notes": "Looks for Claude Desktop / Claude Code local usage. Tracks model from conversation metadata."
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "type": "openai",
+      "enabled": false,
+      "logsPath": "%APPDATA%/OpenAI",
+      "notes": "Supports local OpenAI client caches or usage exports. Tracks model from API call logs."
+    }
+  ],
   "pricing": {
     "currency": "USD",
-    "source": "https://docs.x.ai/developers/pricing",
+    "source": "https://docs.x.ai/developers/pricing (and provider docs)",
     "default": {
       "inputPerM": 2.0,
       "cachedInputPerM": 0.5,
@@ -36,7 +70,16 @@
       "grok-4.20-0309-non-reasoning": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
       "grok-4.20-multi-agent-0309": { "inputPerM": 1.25, "cachedInputPerM": 0.2, "outputPerM": 2.5 },
       "grok-build-0.1": { "inputPerM": 1.0, "cachedInputPerM": 0.2, "outputPerM": 2.0 },
-      "grok-4.1-fast": { "inputPerM": 0.2, "cachedInputPerM": 0.05, "outputPerM": 0.5 }
+      "grok-4.1-fast": { "inputPerM": 0.2, "cachedInputPerM": 0.05, "outputPerM": 0.5 },
+      "claude-3-5-sonnet-20241022": { "inputPerM": 3.0, "cachedInputPerM": 0.3, "outputPerM": 15.0 },
+      "claude-3-5-sonnet": { "inputPerM": 3.0, "cachedInputPerM": 0.3, "outputPerM": 15.0 },
+      "claude-3-opus-20240229": { "inputPerM": 15.0, "cachedInputPerM": 1.5, "outputPerM": 75.0 },
+      "claude-3-haiku-20240307": { "inputPerM": 0.25, "cachedInputPerM": 0.03, "outputPerM": 1.25 },
+      "gpt-4o": { "inputPerM": 2.5, "cachedInputPerM": 1.25, "outputPerM": 10.0 },
+      "gpt-4o-mini": { "inputPerM": 0.15, "cachedInputPerM": 0.075, "outputPerM": 0.6 },
+      "gpt-4o-2024-11-20": { "inputPerM": 2.5, "cachedInputPerM": 1.25, "outputPerM": 10.0 },
+      "o1": { "inputPerM": 15.0, "cachedInputPerM": 7.5, "outputPerM": 60.0 },
+      "o1-mini": { "inputPerM": 3.0, "cachedInputPerM": 1.5, "outputPerM": 12.0 }
     }
   }
 }
